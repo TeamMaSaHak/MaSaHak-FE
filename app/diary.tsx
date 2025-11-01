@@ -1,22 +1,50 @@
-import { StyleSheet, View, Text, Pressable } from "react-native";
-import { Arrow, Blank, Mail } from "../assets/icons";
+import React, { useState } from "react";
+import { StyleSheet, View, Text, Pressable, TextInput, ScrollView } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { Blank } from "../assets/icons";
 import { Topbar } from "../components/topbar";
+import { colors } from "../constants/colors";
 
 function Diary() {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { date } = route.params as { date: string };
+  const [diaryContent, setDiaryContent] = useState("");
+
   return (
     <View style={styles.container}>
       <Topbar
-        title="캘린더"
-        left={<Blank size={22} />}
-        right={<Mail size={22} />}
+        title="일기 작성"
+        left={
+          <Pressable onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={colors.black} />
+          </Pressable>
+        }
+        right={<Blank size={22} />}
       />
-      <View style={styles.moveMonthBox}>
-        <Arrow size={14} direction="left" />
-        <Text style={styles.monthText}>2024.09</Text>
-        <Arrow size={14} />
-      </View>
-      <Pressable style={styles.moveToDiaryButton}>
-        <Text style={styles.moveToDiaryText}>일기 보러 가기</Text>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* 날짜 표시 */}
+        <View style={styles.dateBox}>
+          <Text style={styles.dateText}>{date}</Text>
+        </View>
+
+        {/* 일기 입력란 */}
+        <TextInput
+          style={styles.diaryInput}
+          placeholder="오늘 하루는 어땠나요?"
+          placeholderTextColor="#999"
+          multiline
+          value={diaryContent}
+          onChangeText={setDiaryContent}
+          textAlignVertical="top"
+        />
+      </ScrollView>
+
+      {/* 완료 버튼 */}
+      <Pressable style={styles.completeButton}>
+        <Ionicons name="checkmark" size={28} color={colors.white} />
       </Pressable>
     </View>
   );
@@ -28,35 +56,47 @@ const styles = StyleSheet.create({
     paddingTop: 84,
     paddingHorizontal: 24,
     paddingBottom: 24,
-    gap: 14,
-    alignItems: "center",
-    backgroundColor: "white",
+    backgroundColor: colors.white,
   },
-  moveMonthBox: {
+  scrollView: {
+    flex: 1,
+  },
+  dateBox: {
     width: "100%",
-    flexDirection: "row",
-    justifyContent: "center",
+    paddingVertical: 16,
     alignItems: "center",
-    gap: 12,
+    marginBottom: 20,
   },
-  monthText: {
-    fontSize: 18,
-    fontWeight: 600,
-  },
-  moveToDiaryButton: {
-    width: 240,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 25,
-    backgroundColor: "black",
-    position: "absolute",
-    bottom: 80,
-  },
-  moveToDiaryText: {
-    color: "white",
-    fontWeight: 600,
+  dateText: {
     fontSize: 20,
+    fontWeight: "600",
+    color: colors.black,
+  },
+  diaryInput: {
+    width: "100%",
+    minHeight: 400,
+    padding: 20,
+    backgroundColor: "#F9F9F9",
+    borderRadius: 16,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.black,
+  },
+  completeButton: {
+    width: 60,
+    height: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 30,
+    backgroundColor: colors.black,
+    position: "absolute",
+    bottom: 100,
+    right: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
 export default Diary;
