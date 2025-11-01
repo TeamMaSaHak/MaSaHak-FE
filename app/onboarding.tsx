@@ -1,3 +1,4 @@
+import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { colors } from "../constants/colors";
 
@@ -34,7 +35,7 @@ const styles = StyleSheet.create({
   welcome: {
     fontSize: 36,
     lineHeight: 48,
-    fontWeight: 600,
+    fontWeight: "600",
   },
   buttonBox: {
     gap: 10,
@@ -51,7 +52,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "center",
     color: colors.white,
-    fontWeight: 600,
+    fontWeight: "600",
     fontSize: 20,
   },
   icon: {
