@@ -1,4 +1,5 @@
-import { Svg, Mask, G, Path, Rect } from "react-native-svg";
+import React from "react";
+import Svg, { Mask, G, Path, Rect } from "react-native-svg";
 import { IconProps } from "./types";
 
 export const Board = ({}: IconProps) => {

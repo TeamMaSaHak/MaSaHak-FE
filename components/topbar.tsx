@@ -1,4 +1,4 @@
-import { Dimensions, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { colors } from "../constants/colors";
 import React from "react";
 
@@ -21,7 +21,7 @@ export const Topbar = ({ title, left, right }: TopbarProps) => {
 const styles = StyleSheet.create({
   layout: {
     position: "absolute",
-    width: Dimensions.get("window").width,
+    width: "100%",
     top: 0,
     left: 0,
     height: 50,
@@ -40,6 +40,6 @@ const styles = StyleSheet.create({
   title: {
     lineHeight: 24,
     fontSize: 18,
-    fontWeight: 600,
+    fontWeight: "600",
   },
 });

@@ -1,4 +1,5 @@
-import { Svg, Mask, G, Path, Rect } from "react-native-svg";
+import React from "react";
+import Svg, { Mask, G, Path, Rect } from "react-native-svg";
 import { IconProps } from "./types";
 
 export const Mail = ({ size = 24, color = "black" }: IconProps) => {
@@ -9,8 +10,8 @@ export const Mail = ({ size = 24, color = "black" }: IconProps) => {
         maskUnits="userSpaceOnUse"
         x="0"
         y="0"
-        width={size}
-        height={size}
+        width="22"
+        height="22"
       >
         <Rect width="22" height="22" fill="#D9D9D9" />
       </Mask>
