@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   StyleSheet,
   View,
@@ -6,89 +6,71 @@ import {
   Pressable,
   ScrollView,
   Image,
-  Modal,
-  TextInput,
-  Switch,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Topbar } from "../components/topbar";
-import { Blank, Mail } from "../assets/icons";
 import { colors } from "../constants/colors";
-
-interface App {
-  id: string;
-  name: string;
-  icon: string;
-  isAllowed: boolean;
-}
 
 function Profile() {
   const navigation = useNavigation<any>();
-  const [showAppModal, setShowAppModal] = useState(false);
-  const [notificationEnabled, setNotificationEnabled] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<"allowed" | "blocked">("allowed");
 
   // Mock user data
   const userProfile = {
-    name: "김철수",
-    studentId: "20240101",
-    grade: "3학년",
-    dormitory: "창의관",
-    profileImage: null, // URL or null for placeholder
-  };
-
-  // Mock app data
-  const [apps, setApps] = useState<App[]>([
-    { id: "1", name: "YouTube", icon: "logo-youtube", isAllowed: true },
-    { id: "2", name: "Instagram", icon: "logo-instagram", isAllowed: true },
-    { id: "3", name: "Facebook", icon: "logo-facebook", isAllowed: false },
-    { id: "4", name: "Twitter", icon: "logo-twitter", isAllowed: false },
-    { id: "5", name: "TikTok", icon: "play-circle", isAllowed: true },
-    { id: "6", name: "Netflix", icon: "play", isAllowed: false },
-    { id: "7", name: "게임", icon: "game-controller", isAllowed: false },
-    { id: "8", name: "카카오톡", icon: "chatbubble", isAllowed: true },
-  ]);
-
-  // 앱 검색 필터링
-  const getFilteredApps = () => {
-    return apps.filter((app) => {
-      const matchesSearch = app.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === "allowed" ? app.isAllowed : !app.isAllowed;
-      return matchesSearch && matchesCategory;
-    });
-  };
-
-  // 앱 허용/차단 토글
-  const toggleAppPermission = (appId: string) => {
-    setApps((prev) =>
-      prev.map((app) =>
-        app.id === appId ? { ...app, isAllowed: !app.isAllowed } : app
-      )
-    );
+    name: "고요비",
+    studentId: "202508031",
+    grade: "2학년",
+    dormitory: "소용돌이 기숙사",
+    profileImage: null as string | null,
   };
 
   // 로그아웃
   const handleLogout = () => {
-    // 실제 앱에서는 로그아웃 로직 구현
     console.log("로그아웃");
   };
+
+  // Settings grid items
+  const settingsItems = [
+    {
+      icon: "app-registration" as const,
+      label: "허용 어플",
+      onPress: () => navigation.navigate("AllowedApps"),
+    },
+    {
+      icon: "notifications-active" as const,
+      label: "알림",
+      onPress: () => navigation.navigate("Notifications"),
+    },
+    {
+      icon: "assignment" as const,
+      label: "이용약관",
+      onPress: () => navigation.navigate("Terms"),
+    },
+    {
+      icon: "image" as const,
+      label: "개인정보 처리방침",
+      onPress: () => navigation.navigate("Privacy"),
+    },
+  ];
 
   return (
     <View style={styles.container}>
       <Topbar
-        title="프로필"
-        left={<Blank size={22} />}
-        right={<Mail size={22} />}
+        title="마이 페이지"
+        right={<MaterialIcons name="mail" size={22} color={colors.black} />}
+        onRightPress={() => navigation.navigate("Notifications")}
       />
 
       <ScrollView
         style={styles.content}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* 프로필 섹션 */}
-        <View style={styles.profileSection}>
+        {/* Student Card */}
+        <View style={styles.studentCard}>
+          <Text style={styles.cardTitle}>마법사관학교 학생증</Text>
+
+          {/* Profile Image */}
           <View style={styles.profileImageContainer}>
             {userProfile.profileImage ? (
               <Image
@@ -97,183 +79,77 @@ function Profile() {
               />
             ) : (
               <View style={styles.profileImagePlaceholder}>
-                <Ionicons name="person" size={48} color={colors.black} />
+                <MaterialIcons
+                  name="account-circle"
+                  size={110}
+                  color={colors.gray200}
+                />
               </View>
             )}
           </View>
 
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{userProfile.name}</Text>
-            <View style={styles.profileDetails}>
-              <Text style={styles.profileDetailText}>
-                {userProfile.studentId} · {userProfile.grade} · {userProfile.dormitory}
-              </Text>
+          {/* Name */}
+          <Text style={styles.profileName}>{userProfile.name}</Text>
+
+          {/* Info Lines */}
+          <View style={styles.infoContainer}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>학번</Text>
+              <View style={styles.infoDivider} />
+              <Text style={styles.infoValue}>{userProfile.studentId}</Text>
+            </View>
+
+            <View style={styles.infoSeparator} />
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>학년</Text>
+              <View style={styles.infoDivider} />
+              <Text style={styles.infoValue}>{userProfile.grade}</Text>
+            </View>
+
+            <View style={styles.infoSeparator} />
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>기숙사</Text>
+              <View style={styles.infoDivider} />
+              <Text style={styles.infoValue}>{userProfile.dormitory}</Text>
             </View>
           </View>
         </View>
 
-        {/* 설정 버튼들 */}
-        <View style={styles.settingsSection}>
-          {/* 허용 어플 */}
-          <Pressable
-            style={styles.settingItem}
-            onPress={() => setShowAppModal(true)}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="apps" size={24} color={colors.black} />
-              <Text style={styles.settingItemText}>허용 어플</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#999" />
-          </Pressable>
-
-          {/* 알림 */}
-          <View style={styles.settingItem}>
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="notifications" size={24} color={colors.black} />
-              <Text style={styles.settingItemText}>알림</Text>
-            </View>
-            <Switch
-              value={notificationEnabled}
-              onValueChange={setNotificationEnabled}
-              trackColor={{ false: "#E0E0E0", true: colors.black }}
-              thumbColor={colors.white}
-            />
-          </View>
-
-          {/* 이용약관 */}
-          <Pressable
-            style={styles.settingItem}
-            onPress={() => navigation.navigate("Terms")}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="document-text" size={24} color={colors.black} />
-              <Text style={styles.settingItemText}>이용약관</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#999" />
-          </Pressable>
-
-          {/* 개인정보 처리방침 */}
-          <Pressable
-            style={styles.settingItem}
-            onPress={() => navigation.navigate("Privacy")}
-          >
-            <View style={styles.settingItemLeft}>
-              <Ionicons name="shield-checkmark" size={24} color={colors.black} />
-              <Text style={styles.settingItemText}>개인정보 처리방침</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#999" />
-          </Pressable>
+        {/* Settings Grid */}
+        <View style={styles.settingsGrid}>
+          {settingsItems.map((item, index) => (
+            <Pressable
+              key={index}
+              style={styles.settingsItem}
+              onPress={item.onPress}
+            >
+              {item.icon === "image" ? (
+                <View style={styles.settingsIconPlaceholder}>
+                  <MaterialIcons
+                    name="image"
+                    size={32}
+                    color={colors.gray300}
+                  />
+                </View>
+              ) : (
+                <MaterialIcons
+                  name={item.icon}
+                  size={38}
+                  color={colors.black}
+                />
+              )}
+              <Text style={styles.settingsLabel}>{item.label}</Text>
+            </Pressable>
+          ))}
         </View>
 
-        {/* 로그아웃 버튼 */}
+        {/* Logout Button */}
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutButtonText}>로그아웃</Text>
         </Pressable>
       </ScrollView>
-
-      {/* 허용 어플 관리 모달 */}
-      <Modal
-        visible={showAppModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAppModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.appModalContent}>
-            {/* 모달 헤더 */}
-            <View style={styles.appModalHeader}>
-              <Text style={styles.appModalTitle}>허용 어플 관리</Text>
-              <Pressable onPress={() => setShowAppModal(false)}>
-                <Ionicons name="close" size={28} color={colors.black} />
-              </Pressable>
-            </View>
-
-            {/* 검색창 */}
-            <View style={styles.searchContainer}>
-              <Ionicons
-                name="search"
-                size={20}
-                color="#999"
-                style={styles.searchIcon}
-              />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="어플 검색"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </View>
-
-            {/* 카테고리 탭 */}
-            <View style={styles.categoryTabs}>
-              <Pressable
-                style={[
-                  styles.categoryTab,
-                  selectedCategory === "allowed" && styles.categoryTabActive,
-                ]}
-                onPress={() => setSelectedCategory("allowed")}
-              >
-                <Text
-                  style={[
-                    styles.categoryTabText,
-                    selectedCategory === "allowed" && styles.categoryTabTextActive,
-                  ]}
-                >
-                  허용
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.categoryTab,
-                  selectedCategory === "blocked" && styles.categoryTabActive,
-                ]}
-                onPress={() => setSelectedCategory("blocked")}
-              >
-                <Text
-                  style={[
-                    styles.categoryTabText,
-                    selectedCategory === "blocked" && styles.categoryTabTextActive,
-                  ]}
-                >
-                  비허용
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* 어플 리스트 */}
-            <ScrollView style={styles.appList} showsVerticalScrollIndicator={false}>
-              {getFilteredApps().map((app) => (
-                <View key={app.id} style={styles.appItem}>
-                  <View style={styles.appItemLeft}>
-                    <Ionicons
-                      name={app.icon as any}
-                      size={32}
-                      color={colors.black}
-                    />
-                    <Text style={styles.appItemName}>{app.name}</Text>
-                  </View>
-                  <Pressable
-                    style={[
-                      styles.appToggleButton,
-                      app.isAllowed && styles.appToggleButtonAllowed,
-                    ]}
-                    onPress={() => toggleAppPermission(app.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.appToggleButtonText,
-                        app.isAllowed && styles.appToggleButtonTextAllowed,
-                      ]}
-                    >
-                      {app.isAllowed ? "허용됨" : "차단됨"}
-                    </Text>
-                  </Pressable>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -283,187 +159,147 @@ export default Profile;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.gray100,
   },
   content: {
     flex: 1,
-    paddingTop: 74,
+    paddingTop: 50,
   },
-  profileSection: {
+  contentContainer: {
     alignItems: "center",
-    paddingVertical: 32,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    paddingTop: 24,
+    paddingBottom: 120,
+  },
+
+  // Student Card
+  studentCard: {
+    width: 300,
+    height: 402,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    alignItems: "center",
+    paddingTop: 24,
+    paddingHorizontal: 24,
+  },
+  cardTitle: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.black,
+    marginBottom: 20,
   },
   profileImageContainer: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    overflow: "hidden",
     marginBottom: 16,
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  profileImagePlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#F5F5F5",
     justifyContent: "center",
     alignItems: "center",
   },
-  profileInfo: {
+  profileImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+  },
+  profileImagePlaceholder: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    justifyContent: "center",
     alignItems: "center",
+    backgroundColor: colors.gray100,
   },
   profileName: {
-    fontSize: 24,
-    fontWeight: "600",
+    fontFamily: "Pretendard-Bold",
+    fontSize: 18,
+    lineHeight: 24,
     color: colors.black,
-    marginBottom: 8,
-  },
-  profileDetails: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  profileDetailText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  settingsSection: {
-    paddingVertical: 16,
-  },
-  settingItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-  },
-  settingItemLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  settingItemText: {
-    fontSize: 16,
-    color: colors.black,
-  },
-  logoutButton: {
-    marginHorizontal: 24,
-    marginTop: 24,
-    marginBottom: 120,
-    paddingVertical: 16,
-    borderRadius: 12,
-    backgroundColor: "#FF6B6B",
-    alignItems: "center",
-  },
-  logoutButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.white,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  appModalContent: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 20,
-    height: "80%",
-  },
-  appModalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 24,
     marginBottom: 20,
   },
-  appModalTitle: {
-    fontSize: 20,
-    fontWeight: "600",
+
+  // Info Lines
+  infoContainer: {
+    width: "100%",
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  infoLabel: {
+    fontFamily: "Pretendard-Regular",
+    fontSize: 12,
+    lineHeight: 16,
     color: colors.black,
+    width: 40,
   },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 24,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
+  infoDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: colors.gray200,
+    marginHorizontal: 12,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
+  infoValue: {
+    fontFamily: "Pretendard-Regular",
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.black,
     flex: 1,
-    fontSize: 16,
   },
-  categoryTabs: {
+  infoSeparator: {
+    height: 1,
+    backgroundColor: colors.gray100,
+    marginHorizontal: 8,
+  },
+
+  // Settings Grid
+  settingsGrid: {
     flexDirection: "row",
-    marginHorizontal: 24,
-    marginBottom: 16,
-    gap: 8,
-  },
-  categoryTab: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: "#F5F5F5",
-    alignItems: "center",
-  },
-  categoryTabActive: {
-    backgroundColor: colors.black,
-  },
-  categoryTabText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#999",
-  },
-  categoryTabTextActive: {
-    color: colors.white,
-  },
-  appList: {
-    flex: 1,
-    paddingHorizontal: 24,
-  },
-  appItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-  },
-  appItemLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexWrap: "wrap",
+    width: 300,
+    marginTop: 16,
     gap: 12,
+    justifyContent: "center",
   },
-  appItemName: {
-    fontSize: 16,
+  settingsItem: {
+    width: 144,
+    height: 80,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 4,
+  },
+  settingsIconPlaceholder: {
+    width: 32,
+    height: 32,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  settingsLabel: {
+    fontFamily: "Pretendard-Regular",
+    fontSize: 10,
+    lineHeight: 14,
     color: colors.black,
+    textAlign: "center",
   },
-  appToggleButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#FF6B6B",
+
+  // Logout
+  logoutButton: {
+    width: 240,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.black,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 24,
   },
-  appToggleButtonAllowed: {
-    backgroundColor: "#4ECDC4",
-  },
-  appToggleButtonText: {
+  logoutButtonText: {
+    fontFamily: "Pretendard-Bold",
     fontSize: 14,
-    fontWeight: "600",
-    color: colors.white,
-  },
-  appToggleButtonTextAllowed: {
+    lineHeight: 20,
     color: colors.white,
   },
 });

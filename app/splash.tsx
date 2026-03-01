@@ -1,21 +1,23 @@
-import React, { useEffect, useState } from "react";
-import { View, Image, StyleSheet } from "react-native";
+import React, { useEffect } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { colors } from "../constants/colors";
 
-export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
+interface SplashScreenProps {
+  onFinish: () => void;
+}
+
+export default function SplashScreen({ onFinish }: SplashScreenProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onFinish();
-    }, 2000); // 2초 후 스플래시 종료
+    }, 2000);
     return () => clearTimeout(timer);
   }, []);
 
   return (
     <View style={styles.container}>
-      <Image
-        source={require("../assets/splash-icon.png")}
-        style={styles.image}
-        resizeMode="contain"
-      />
+      <View style={styles.logoPlaceholder} />
+      <Text style={styles.title}>마법사관학교</Text>
     </View>
   );
 }
@@ -23,12 +25,20 @@ export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
   },
-  image: {
-    width: 200,
-    height: 200,
+  logoPlaceholder: {
+    width: 160,
+    height: 160,
+    backgroundColor: colors.gray200,
+    borderRadius: 8,
+  },
+  title: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 28,
+    color: colors.black,
+    marginTop: 24,
   },
 });

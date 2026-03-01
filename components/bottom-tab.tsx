@@ -1,7 +1,8 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
+import { StyleSheet } from "react-native";
 
 import Home from "../app/home";
 import Calendar from "../app/calendar";
@@ -10,41 +11,52 @@ import Profile from "../app/profile";
 import Todolist from "../app/todolist";
 import Terms from "../app/terms";
 import Privacy from "../app/privacy";
+import Notifications from "../app/notifications";
+import AllowedApps from "../app/allowed-apps";
 import { colors } from "../constants/colors";
-import { Dimensions, StyleSheet } from "react-native";
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
 
-// Calendar Stack Navigator
+const CalendarStackNav = createStackNavigator();
+const HomeStackNav = createStackNavigator();
+const ProfileStackNav = createStackNavigator();
+
 const CalendarStack = () => {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="CalendarMain" component={Calendar} />
-      <Stack.Screen name="Diary" component={Diary} />
-    </Stack.Navigator>
+    <CalendarStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <CalendarStackNav.Screen name="CalendarMain" component={Calendar} />
+      <CalendarStackNav.Screen name="Diary" component={Diary} />
+    </CalendarStackNav.Navigator>
   );
 };
 
-// Home Stack Navigator
 const HomeStack = () => {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="HomeMain" component={Home} />
-      <Stack.Screen name="Todolist" component={Todolist} />
-    </Stack.Navigator>
+    <HomeStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStackNav.Screen name="HomeMain" component={Home} />
+      <HomeStackNav.Screen name="Todolist" component={Todolist} />
+    </HomeStackNav.Navigator>
   );
 };
 
-// Profile Stack Navigator
 const ProfileStack = () => {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="ProfileMain" component={Profile} />
-      <Stack.Screen name="Terms" component={Terms} />
-      <Stack.Screen name="Privacy" component={Privacy} />
-    </Stack.Navigator>
+    <ProfileStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <ProfileStackNav.Screen name="ProfileMain" component={Profile} />
+      <ProfileStackNav.Screen name="Terms" component={Terms} />
+      <ProfileStackNav.Screen name="Privacy" component={Privacy} />
+      <ProfileStackNav.Screen name="Notifications" component={Notifications} />
+      <ProfileStackNav.Screen name="AllowedApps" component={AllowedApps} />
+    </ProfileStackNav.Navigator>
   );
+};
+
+type TabIconName = "calendar-today" | "home" | "person";
+
+const TAB_ICONS: Record<string, TabIconName> = {
+  "\uCE98\uB9B0\uB354": "calendar-today",
+  "\uD648": "home",
+  "\uD504\uB85C\uD544": "person",
 };
 
 export const BottomTab = () => {
@@ -53,42 +65,39 @@ export const BottomTab = () => {
       screenOptions={({ route }) => ({
         tabBarStyle: styles.container,
         tabBarShowLabel: false,
-        tabBarIcon: ({ color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = "home";
-
-          if (route.name === "홈") {
-            iconName = "home";
-          } else if (route.name === "캘린더") {
-            iconName = "calendar";
-          } else if (route.name === "프로필") {
-            iconName = "person";
-          }
-
-          return <Ionicons name={iconName} size={32} color={color} />;
+        tabBarIcon: ({ color }) => {
+          const iconName = TAB_ICONS[route.name] ?? "home";
+          return <MaterialIcons name={iconName} size={32} color={color} />;
         },
         tabBarActiveTintColor: colors.black,
-        tabBarInactiveTintColor: "gray",
+        tabBarInactiveTintColor: colors.gray300,
         headerShown: false,
       })}
     >
-      <Tab.Screen name="캘린더" component={CalendarStack} />
-      <Tab.Screen name="홈" component={HomeStack} />
-      <Tab.Screen name="프로필" component={ProfileStack} />
+      <Tab.Screen name={"\uCE98\uB9B0\uB354"} component={CalendarStack} />
+      <Tab.Screen name={"\uD648"} component={HomeStack} />
+      <Tab.Screen name={"\uD504\uB85C\uD544"} component={ProfileStack} />
     </Tab.Navigator>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    position: "absolute",
+    width: 342,
+    height: 60,
     borderRadius: 45,
     backgroundColor: colors.white,
     bottom: 34,
-    width: Dimensions.get("window").width - 48,
-    alignSelf: "center",
-    height: 60,
+    left: (390 - 342) / 2,
     justifyContent: "center",
     paddingTop: 12,
     paddingBottom: 16,
     paddingHorizontal: 56,
+    shadowColor: colors.black,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 10,
   },
 });

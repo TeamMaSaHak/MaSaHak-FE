@@ -8,7 +8,7 @@ import {
   TextInput,
   Modal,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { Topbar } from "../components/topbar";
 
@@ -16,50 +16,36 @@ interface Todo {
   id: string;
   text: string;
   completed: boolean;
-  categoryId: string;
 }
 
-interface Category {
-  id: string;
-  name: string;
-  color: string;
-}
+type TabType = "전체" | "반복";
 
 function Todolist() {
-  const [categories, setCategories] = useState<Category[]>([
-    { id: "1", name: "개인", color: "#FF6B6B" },
-    { id: "2", name: "업무", color: "#4ECDC4" },
-    { id: "3", name: "공부", color: "#95E1D3" },
-  ]);
-
   const [todos, setTodos] = useState<Todo[]>([
-    { id: "1", text: "아침 운동하기", completed: false, categoryId: "1" },
-    { id: "2", text: "회의 준비", completed: false, categoryId: "2" },
-    { id: "3", text: "React Native 공부", completed: true, categoryId: "3" },
+    { id: "1", text: "아침 운동하기", completed: false },
+    { id: "2", text: "회의 준비", completed: false },
+    { id: "3", text: "React Native 공부", completed: true },
+    { id: "4", text: "장보기", completed: false },
+    { id: "5", text: "독서 30분", completed: false },
   ]);
 
-  const [selectedCategory, setSelectedCategory] = useState<string>("1");
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<TabType>("전체");
+  const [showMenu, setShowMenu] = useState<string | null>(null);
   const [showTodoModal, setShowTodoModal] = useState(false);
-  const [showKebabMenu, setShowKebabMenu] = useState<string | null>(null);
-  const [newCategoryName, setNewCategoryName] = useState("");
   const [newTodoText, setNewTodoText] = useState("");
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [currentDate, setCurrentDate] = useState("2025.08.03");
 
-  // 오늘 해야할 일 개수 (완료되지 않은 것만)
-  const todayTodoCount = todos.filter((todo) => !todo.completed).length;
+  const totalCount = todos.length;
+  const repeatCount = 0;
 
-  // 선택된 카테고리의 투두 가져오기
-  const getCategoryTodos = (categoryId: string) => {
-    const categoryTodos = todos.filter((todo) => todo.categoryId === categoryId);
-    // 완료되지 않은 것을 위로, 완료된 것을 아래로 정렬
-    return categoryTodos.sort((a, b) => {
+  const getSortedTodos = () => {
+    return [...todos].sort((a, b) => {
       if (a.completed === b.completed) return 0;
       return a.completed ? 1 : -1;
     });
   };
 
-  // 투두 체크/언체크
   const toggleTodo = (id: string) => {
     setTodos((prev) =>
       prev.map((todo) =>
@@ -68,38 +54,32 @@ function Todolist() {
     );
   };
 
-  // 투두 삭제
   const deleteTodo = (id: string) => {
     setTodos((prev) => prev.filter((todo) => todo.id !== id));
-    setShowKebabMenu(null);
+    setShowMenu(null);
   };
 
-  // 투두 수정
   const editTodo = (todo: Todo) => {
     setEditingTodo(todo);
     setNewTodoText(todo.text);
     setShowTodoModal(true);
-    setShowKebabMenu(null);
+    setShowMenu(null);
   };
 
-  // 투두 저장
   const saveTodo = () => {
     if (!newTodoText.trim()) return;
 
     if (editingTodo) {
-      // 수정
       setTodos((prev) =>
         prev.map((todo) =>
           todo.id === editingTodo.id ? { ...todo, text: newTodoText } : todo
         )
       );
     } else {
-      // 새로 추가
       const newTodo: Todo = {
         id: Date.now().toString(),
         text: newTodoText,
         completed: false,
-        categoryId: selectedCategory,
       };
       setTodos((prev) => [...prev, newTodo]);
     }
@@ -109,22 +89,8 @@ function Todolist() {
     setShowTodoModal(false);
   };
 
-  // 카테고리 추가
-  const addCategory = () => {
-    if (!newCategoryName.trim()) return;
-
-    const colors = ["#FF6B6B", "#4ECDC4", "#95E1D3", "#F38181", "#AA96DA"];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-    const newCategory: Category = {
-      id: Date.now().toString(),
-      name: newCategoryName,
-      color: randomColor,
-    };
-
-    setCategories((prev) => [...prev, newCategory]);
-    setNewCategoryName("");
-    setShowCategoryModal(false);
+  const navigateDate = (direction: "back" | "forward") => {
+    // Date navigation placeholder
   };
 
   return (
@@ -132,123 +98,187 @@ function Todolist() {
       <Topbar title="투두리스트" />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* 오늘 할 일 개수 */}
-        <View style={styles.todaySection}>
-          <Text style={styles.todayText}>오늘 할 일</Text>
-          <Text style={styles.todayCount}>{todayTodoCount}개</Text>
+        {/* Date navigation row */}
+        <View style={styles.dateRow}>
+          <Pressable onPress={() => navigateDate("back")}>
+            <MaterialIcons
+              name="chevron-left"
+              size={14}
+              color={colors.black}
+            />
+          </Pressable>
+          <Text style={styles.dateText}>{currentDate}</Text>
+          <Pressable onPress={() => navigateDate("forward")}>
+            <MaterialIcons
+              name="chevron-right"
+              size={14}
+              color={colors.black}
+            />
+          </Pressable>
         </View>
 
-        {/* 카테고리 목록 */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryScroll}
-        >
-          {categories.map((category) => (
-            <Pressable
-              key={category.id}
+        {/* Hero section */}
+        <View style={styles.heroSection}>
+          <Text style={styles.heroTitle}>
+            {"오늘 해야하는 일\n"}
+            <Text style={styles.heroTitle}>{totalCount}개</Text>
+          </Text>
+          <Text style={styles.heroQuote}>
+            한 줄 어쩌고 낭만 감성 오늘의 글귀...
+          </Text>
+        </View>
+
+        {/* Tab chips row */}
+        <View style={styles.tabRow}>
+          <Pressable
+            style={[
+              styles.tabChip,
+              selectedTab === "전체" && styles.tabChipActive,
+            ]}
+            onPress={() => setSelectedTab("전체")}
+          >
+            <Text
               style={[
-                styles.categoryChip,
-                selectedCategory === category.id && styles.categoryChipActive,
-                { borderColor: category.color },
+                styles.tabChipText,
+                selectedTab === "전체" && styles.tabChipTextActive,
               ]}
-              onPress={() => setSelectedCategory(category.id)}
+            >
+              전체
+            </Text>
+            <View
+              style={[
+                styles.tabBadge,
+                selectedTab === "전체"
+                  ? styles.tabBadgeActive
+                  : styles.tabBadgeInactive,
+              ]}
             >
               <Text
                 style={[
-                  styles.categoryText,
-                  selectedCategory === category.id && {
-                    color: category.color,
-                    fontWeight: "600",
-                  },
+                  styles.tabBadgeText,
+                  selectedTab === "전체"
+                    ? styles.tabBadgeTextActive
+                    : styles.tabBadgeTextInactive,
                 ]}
               >
-                {category.name}
+                {totalCount}
               </Text>
-            </Pressable>
-          ))}
-
-          {/* 카테고리 추가 버튼 */}
-          <Pressable
-            style={styles.categoryAddButton}
-            onPress={() => setShowCategoryModal(true)}
-          >
-            <Ionicons name="add" size={20} color={colors.black} />
+            </View>
           </Pressable>
-        </ScrollView>
 
-        {/* 투두 리스트 */}
-        <View style={styles.todoList}>
-          {getCategoryTodos(selectedCategory).map((todo) => (
-            <View key={todo.id} style={styles.todoItem}>
-              {/* 체크박스 */}
-              <Pressable
-                style={styles.checkbox}
-                onPress={() => toggleTodo(todo.id)}
-              >
-                <Ionicons
-                  name={
-                    todo.completed ? "checkmark-circle" : "ellipse-outline"
-                  }
-                  size={24}
-                  color={
-                    todo.completed
-                      ? categories.find((c) => c.id === selectedCategory)
-                          ?.color
-                      : colors.black
-                  }
-                />
-              </Pressable>
-
-              {/* 투두 텍스트 */}
+          <Pressable
+            style={[
+              styles.tabChip,
+              selectedTab === "반복"
+                ? styles.tabChipActive
+                : styles.tabChipInactive,
+            ]}
+            onPress={() => setSelectedTab("반복")}
+          >
+            <Text
+              style={[
+                styles.tabChipText,
+                selectedTab === "반복"
+                  ? styles.tabChipTextActive
+                  : styles.tabChipTextInactive,
+              ]}
+            >
+              반복
+            </Text>
+            <View
+              style={[
+                styles.tabBadge,
+                selectedTab === "반복"
+                  ? styles.tabBadgeActive
+                  : styles.tabBadgeInactive,
+              ]}
+            >
               <Text
                 style={[
-                  styles.todoText,
-                  todo.completed && styles.todoTextCompleted,
+                  styles.tabBadgeText,
+                  selectedTab === "반복"
+                    ? styles.tabBadgeTextActive
+                    : styles.tabBadgeTextInactive,
                 ]}
               >
-                {todo.text}
+                {repeatCount}
               </Text>
+            </View>
+          </Pressable>
+        </View>
 
-              {/* 케밥 메뉴 */}
-              <Pressable
-                style={styles.kebabButton}
-                onPress={() =>
-                  setShowKebabMenu(showKebabMenu === todo.id ? null : todo.id)
-                }
-              >
-                <Ionicons
-                  name="ellipsis-vertical"
-                  size={20}
-                  color={colors.black}
-                />
-              </Pressable>
+        {/* Todo items list */}
+        <View style={styles.todoList}>
+          {getSortedTodos().map((todo, index) => (
+            <View key={todo.id}>
+              <View style={styles.todoItem}>
+                <Pressable
+                  style={styles.checkbox}
+                  onPress={() => toggleTodo(todo.id)}
+                >
+                  <MaterialIcons
+                    name={
+                      todo.completed
+                        ? "radio-button-checked"
+                        : "radio-button-unchecked"
+                    }
+                    size={16}
+                    color={colors.black}
+                  />
+                </Pressable>
 
-              {/* 케밥 메뉴 드롭다운 */}
-              {showKebabMenu === todo.id && (
-                <View style={styles.kebabMenu}>
-                  <Pressable
-                    style={styles.kebabMenuItem}
-                    onPress={() => editTodo(todo)}
-                  >
-                    <Text style={styles.kebabMenuText}>수정</Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.kebabMenuItem}
-                    onPress={() => deleteTodo(todo.id)}
-                  >
-                    <Text style={[styles.kebabMenuText, styles.deleteText]}>
-                      삭제
-                    </Text>
-                  </Pressable>
-                </View>
+                <Text
+                  style={[
+                    styles.todoText,
+                    todo.completed && styles.todoTextCompleted,
+                  ]}
+                >
+                  {todo.text}
+                </Text>
+
+                <Pressable
+                  style={styles.moreButton}
+                  onPress={() =>
+                    setShowMenu(showMenu === todo.id ? null : todo.id)
+                  }
+                >
+                  <MaterialIcons
+                    name="more-horiz"
+                    size={24}
+                    color={colors.black}
+                  />
+                </Pressable>
+
+                {/* Menu popup */}
+                {showMenu === todo.id && (
+                  <View style={styles.menuPopup}>
+                    <Pressable
+                      style={styles.menuItem}
+                      onPress={() => editTodo(todo)}
+                    >
+                      <Text style={styles.menuItemText}>수정</Text>
+                    </Pressable>
+                    <View style={styles.menuDivider} />
+                    <Pressable
+                      style={styles.menuItem}
+                      onPress={() => deleteTodo(todo.id)}
+                    >
+                      <Text style={styles.menuItemText}>삭제</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+
+              {/* Separator line */}
+              {index < getSortedTodos().length - 1 && (
+                <View style={styles.separator} />
               )}
             </View>
           ))}
         </View>
       </ScrollView>
 
-      {/* 새 투두 추가 Floating Button */}
+      {/* Floating add button */}
       <Pressable
         style={styles.floatingButton}
         onPress={() => {
@@ -257,55 +287,10 @@ function Todolist() {
           setShowTodoModal(true);
         }}
       >
-        <Ionicons name="add" size={32} color={colors.white} />
+        <MaterialIcons name="add" size={52} color={colors.white} />
       </Pressable>
 
-      {/* 카테고리 추가 모달 */}
-      <Modal
-        visible={showCategoryModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCategoryModal(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowCategoryModal(false)}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>새 카테고리</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="카테고리 이름"
-              value={newCategoryName}
-              onChangeText={setNewCategoryName}
-              autoFocus
-            />
-            <View style={styles.modalButtons}>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => {
-                  setShowCategoryModal(false);
-                  setNewCategoryName("");
-                }}
-              >
-                <Text style={styles.modalButtonText}>취소</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonConfirm]}
-                onPress={addCategory}
-              >
-                <Text
-                  style={[styles.modalButtonText, styles.modalButtonTextWhite]}
-                >
-                  추가
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* 투두 추가/수정 모달 */}
+      {/* Add/Edit modal */}
       <Modal
         visible={showTodoModal}
         transparent
@@ -320,13 +305,17 @@ function Todolist() {
             setEditingTodo(null);
           }}
         >
-          <View style={styles.modalContent}>
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
             <Text style={styles.modalTitle}>
-              {editingTodo ? "투두 수정" : "새 투두"}
+              {editingTodo ? "투두 수정" : "투두 추가"}
             </Text>
             <TextInput
               style={styles.modalInput}
               placeholder="할 일을 입력하세요"
+              placeholderTextColor={colors.gray300}
               value={newTodoText}
               onChangeText={setNewTodoText}
               autoFocus
@@ -340,15 +329,13 @@ function Todolist() {
                   setEditingTodo(null);
                 }}
               >
-                <Text style={styles.modalButtonText}>취소</Text>
+                <Text style={styles.modalButtonCancelText}>취소</Text>
               </Pressable>
               <Pressable
                 style={[styles.modalButton, styles.modalButtonConfirm]}
                 onPress={saveTodo}
               >
-                <Text
-                  style={[styles.modalButtonText, styles.modalButtonTextWhite]}
-                >
+                <Text style={styles.modalButtonConfirmText}>
                   {editingTodo ? "수정" : "추가"}
                 </Text>
               </Pressable>
@@ -370,61 +357,105 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: 24,
     paddingTop: 74,
   },
-  todaySection: {
+
+  /* Date navigation row */
+  dateRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
+    gap: 16,
     marginBottom: 24,
   },
-  todayText: {
-    fontSize: 24,
-    fontWeight: "600",
+  dateText: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 18,
+    lineHeight: 24,
     color: colors.black,
   },
-  todayCount: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#4ECDC4",
-  },
-  categoryScroll: {
+
+  /* Hero section */
+  heroSection: {
     marginBottom: 24,
   },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: "#E0E0E0",
-    marginRight: 8,
-    backgroundColor: colors.white,
+  heroTitle: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 36,
+    lineHeight: 48,
+    color: colors.black,
   },
-  categoryChipActive: {
-    backgroundColor: "#F5F5F5",
-  },
-  categoryText: {
+  heroQuote: {
+    fontFamily: "Pretendard-Regular",
     fontSize: 14,
+    lineHeight: 20,
+    color: colors.gray300,
+    marginTop: 8,
+  },
+
+  /* Tab chips row */
+  tabRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 24,
+  },
+  tabChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 28,
+    paddingHorizontal: 12,
+    borderRadius: 27,
+    gap: 6,
+  },
+  tabChipActive: {
+    backgroundColor: colors.black,
+  },
+  tabChipInactive: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.black,
+  },
+  tabChipText: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 12,
+  },
+  tabChipTextActive: {
+    color: colors.white,
+  },
+  tabChipTextInactive: {
     color: colors.black,
   },
-  categoryAddButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F5F5F5",
+  tabBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     justifyContent: "center",
     alignItems: "center",
   },
-  todoList: {
-    gap: 12,
+  tabBadgeActive: {
+    backgroundColor: colors.gray400,
   },
+  tabBadgeInactive: {
+    backgroundColor: colors.gray100,
+  },
+  tabBadgeText: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 12,
+  },
+  tabBadgeTextActive: {
+    color: colors.white,
+  },
+  tabBadgeTextInactive: {
+    color: colors.black,
+  },
+
+  /* Todo items list */
+  todoList: {},
   todoItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: "#F9F9F9",
-    borderRadius: 12,
+    paddingVertical: 12,
     position: "relative",
   },
   checkbox: {
@@ -432,59 +463,82 @@ const styles = StyleSheet.create({
   },
   todoText: {
     flex: 1,
-    fontSize: 16,
+    fontFamily: "Pretendard-Regular",
+    fontSize: 14,
+    lineHeight: 20,
     color: colors.black,
   },
   todoTextCompleted: {
     textDecorationLine: "line-through",
-    color: "#999",
+    color: colors.gray300,
   },
-  kebabButton: {
+  moreButton: {
     padding: 4,
   },
-  kebabMenu: {
+  separator: {
+    width: 342,
+    height: 1,
+    backgroundColor: colors.gray200,
+    alignSelf: "center",
+  },
+
+  /* Menu popup */
+  menuPopup: {
     position: "absolute",
-    right: 40,
-    top: 12,
+    right: 28,
+    top: 8,
+    width: 120,
+    height: 35,
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.white,
     borderRadius: 8,
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
-    minWidth: 80,
     zIndex: 10,
   },
-  kebabMenuItem: {
-    padding: 12,
+  menuItem: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    height: 35,
   },
-  kebabMenuText: {
+  menuItemText: {
+    fontFamily: "Pretendard-Regular",
     fontSize: 14,
     color: colors.black,
   },
-  deleteText: {
-    color: "#FF6B6B",
+  menuDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.gray200,
   },
+
+  /* Floating add button */
   floatingButton: {
     position: "absolute",
     right: 24,
     bottom: 100,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: colors.black,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
+
+  /* Modal */
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: colors.overlay,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -492,21 +546,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 16,
     padding: 24,
-    width: "80%",
-    maxWidth: 400,
+    width: 244,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 16,
+    fontFamily: "Pretendard-Bold",
+    fontSize: 18,
+    lineHeight: 24,
     color: colors.black,
+    marginBottom: 16,
+    textAlign: "center",
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: "#E0E0E0",
+    borderColor: colors.gray200,
     borderRadius: 8,
     padding: 12,
-    fontSize: 16,
+    fontFamily: "Pretendard-Regular",
+    fontSize: 14,
+    color: colors.black,
     marginBottom: 20,
   },
   modalButtons: {
@@ -515,22 +572,24 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-    padding: 12,
+    paddingVertical: 10,
     borderRadius: 8,
     alignItems: "center",
   },
   modalButtonCancel: {
-    backgroundColor: "#F5F5F5",
+    backgroundColor: colors.gray100,
   },
   modalButtonConfirm: {
     backgroundColor: colors.black,
   },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
+  modalButtonCancelText: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 14,
     color: colors.black,
   },
-  modalButtonTextWhite: {
+  modalButtonConfirmText: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 14,
     color: colors.white,
   },
 });

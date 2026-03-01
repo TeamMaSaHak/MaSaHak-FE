@@ -1,9 +1,8 @@
 import React from "react";
-import { StyleSheet, View, Text, ScrollView, Pressable } from "react-native";
+import { StyleSheet, View, Text, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Topbar } from "../components/topbar";
-import { Blank } from "../assets/icons";
 import { colors } from "../constants/colors";
 
 function Terms() {
@@ -14,11 +13,9 @@ function Terms() {
       <Topbar
         title="이용약관"
         left={
-          <Pressable onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={colors.black} />
-          </Pressable>
+          <MaterialIcons name="arrow-back-ios-new" size={22} color={colors.black} />
         }
-        right={<Blank size={22} />}
+        onLeftPress={() => navigation.goBack()}
       />
 
       <ScrollView
@@ -122,15 +119,16 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontFamily: "Pretendard-Bold",
+    fontSize: 10,
     color: colors.black,
     marginBottom: 12,
   },
   sectionContent: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#666",
+    fontFamily: "Pretendard-Regular",
+    fontSize: 10,
+    lineHeight: 12,
+    color: colors.gray300,
   },
   footer: {
     marginTop: 40,
@@ -138,7 +136,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   footerText: {
-    fontSize: 12,
-    color: "#999",
+    fontFamily: "Pretendard-Regular",
+    fontSize: 10,
+    color: colors.gray300,
   },
 });
