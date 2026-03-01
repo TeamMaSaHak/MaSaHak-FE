@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -11,6 +11,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
+import { getDiary, saveDiary } from "../services/diary";
 
 type ViewMode = "writing" | "saved" | "aiReply";
 
@@ -36,9 +37,49 @@ function Diary() {
   const [viewMode, setViewMode] = useState<ViewMode>("writing");
   const [diaryText, setDiaryText] = useState("");
   const [savedText, setSavedText] = useState("");
-  const [aiReplyText] = useState(
-    "오늘 하루도 수고 많았어요! 작은 일이라도 해낸 자신을 칭찬해 주세요. 내일은 더 좋은 하루가 될 거예요. 항상 응원하고 있어요!"
-  );
+  const [aiReplyText, setAiReplyText] = useState("");
+  const [isLocked, setIsLocked] = useState(false);
+  const [canEdit, setCanEdit] = useState(true);
+
+  const buildDateString = useCallback(() => {
+    const m = String(currentMonth).padStart(2, "0");
+    const d = String(currentDay).padStart(2, "0");
+    return `${currentYear}-${m}-${d}`;
+  }, [currentYear, currentMonth, currentDay]);
+
+  const fetchDiary = useCallback(async () => {
+    const dateStr = buildDateString();
+    try {
+      const res = await getDiary(dateStr);
+      if (res.success && res.data) {
+        const entry = res.data;
+        setIsLocked(entry.isLocked);
+        setCanEdit(entry.canEdit);
+
+        if (entry.content) {
+          setDiaryText(entry.content);
+          setSavedText(entry.content);
+          if (entry.reply) {
+            setAiReplyText(entry.reply.content);
+          } else {
+            setAiReplyText("");
+          }
+          setViewMode("saved");
+        } else {
+          setDiaryText("");
+          setSavedText("");
+          setAiReplyText("");
+          setViewMode("writing");
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch diary:", e);
+    }
+  }, [buildDateString]);
+
+  useEffect(() => {
+    fetchDiary();
+  }, [fetchDiary]);
 
   const formatDate = () => {
     const m = String(currentMonth).padStart(2, "0");
@@ -90,10 +131,18 @@ function Diary() {
   const currentDateObj = new Date(currentYear, currentMonth - 1, currentDay);
   const hasNext = currentDateObj < today;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (diaryText.trim().length === 0) return;
-    setSavedText(diaryText);
-    setViewMode("saved");
+    const dateStr = buildDateString();
+    try {
+      const res = await saveDiary(dateStr, diaryText);
+      if (res.success) {
+        setSavedText(diaryText);
+        setViewMode("saved");
+      }
+    } catch (e) {
+      console.error("Failed to save diary:", e);
+    }
   };
 
   const handleGoToAiReply = () => {
@@ -175,12 +224,17 @@ function Diary() {
               value={diaryText}
               onChangeText={setDiaryText}
               textAlignVertical="top"
+              editable={!isLocked && canEdit}
             />
           </View>
         </ScrollView>
 
         {/* Save button */}
-        <Pressable style={styles.bottomButton} onPress={handleSave}>
+        <Pressable
+          style={[styles.bottomButton, (isLocked || !canEdit) && { opacity: 0.4 }]}
+          onPress={handleSave}
+          disabled={isLocked || !canEdit}
+        >
           <Text style={styles.bottomButtonText}>저장하기</Text>
         </Pressable>
       </View>

@@ -1,15 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { StyleSheet, View, Text, Pressable, ScrollView } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
-
-interface DiaryEntry {
-  date: string; // YYYY-MM-DD
-  content: string;
-  aiReply?: string;
-}
+import { getMonthlyCalendar, getMonthlyStats } from "../services/calendar";
 
 function Calendar() {
   const navigation = useNavigation();
@@ -17,36 +12,63 @@ function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(6); // 0-indexed (6 = July)
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
 
-  // Mock data
-  const [diaries] = useState<DiaryEntry[]>([
-    {
-      date: "2025-07-03",
-      content:
-        "오늘은 정말 집중이 잘 됐다. 뽀모도로 3세트를 완료하고 투두리스트도 5개나 완료했다.",
-      aiReply:
-        "오늘 정말 생산적인 하루를 보내셨네요! 뽀모도로 3세트와 투두 5개 완료는 대단한 성과입니다.",
-    },
-    {
-      date: "2025-07-10",
-      content: "오늘은 좀 힘들었다. 집중이 잘 안돼서 뽀모도로 1세트만 겨우 완료했다.",
-    },
-    {
-      date: "2025-07-15",
-      content: "새로운 프로젝트를 시작했다. 기대가 된다!",
-      aiReply: "새로운 시작은 언제나 설레는 법이죠! 화이팅하세요!",
-    },
-  ]);
-
   // Attendance dates (dates the user was present / studied)
-  const attendanceDates = new Set(["2025-07-03", "2025-07-10", "2025-07-15"]);
+  const [attendanceDates, setAttendanceDates] = useState<Set<string>>(
+    new Set()
+  );
 
-  // Monthly stats (default 0 per spec)
-  const monthlyStats = [
+  // Monthly stats
+  const [monthlyStats, setMonthlyStats] = useState([
     { title: "이번 달 총 출석 횟수", value: 0, unit: "회" },
     { title: "이번 달 총 집중 시간", value: 0, unit: "분" },
     { title: "이번 달 평균 집중 시간", value: 0, unit: "분" },
     { title: "이번 달 완료한 투두 리스트 수", value: 0, unit: "개" },
-  ];
+  ]);
+
+  const fetchCalendarData = useCallback(async () => {
+    const apiMonth = currentMonth + 1; // convert 0-indexed to 1-indexed
+
+    try {
+      const calendarRes = await getMonthlyCalendar(currentYear, apiMonth);
+      if (calendarRes.success && calendarRes.data) {
+        const dates = new Set(
+          calendarRes.data.days
+            .filter((day) => day.totalMinutes > 0)
+            .map((day) => day.date)
+        );
+        setAttendanceDates(dates);
+      }
+    } catch (e) {
+      console.error("Failed to fetch monthly calendar:", e);
+    }
+
+    try {
+      const statsRes = await getMonthlyStats(currentYear, apiMonth);
+      if (statsRes.success && statsRes.data) {
+        const s = statsRes.data;
+        setMonthlyStats([
+          { title: "이번 달 총 출석 횟수", value: s.attendanceDays, unit: "회" },
+          { title: "이번 달 총 집중 시간", value: s.totalMinutes, unit: "분" },
+          {
+            title: "이번 달 평균 집중 시간",
+            value: s.averageMinutesPerDay,
+            unit: "분",
+          },
+          {
+            title: "이번 달 완료한 투두 리스트 수",
+            value: s.completedTodos,
+            unit: "개",
+          },
+        ]);
+      }
+    } catch (e) {
+      console.error("Failed to fetch monthly stats:", e);
+    }
+  }, [currentYear, currentMonth]);
+
+  useEffect(() => {
+    fetchCalendarData();
+  }, [fetchCalendarData]);
 
   // Calendar helpers
   const getDaysInMonth = (year: number, month: number) =>

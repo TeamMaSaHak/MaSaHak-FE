@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -7,90 +7,180 @@ import {
   ScrollView,
   TextInput,
   Modal,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { Topbar } from "../components/topbar";
-
-interface Todo {
-  id: string;
-  text: string;
-  completed: boolean;
-}
+import {
+  getTodos,
+  createTodo,
+  updateTodo,
+  deleteTodo,
+  toggleTodo,
+  getRecurringTodos,
+  createRecurringTodo,
+  updateRecurringTodo,
+  deleteRecurringTodo,
+  Todo,
+  RecurringTodo,
+} from "../services/todos";
 
 type TabType = "전체" | "반복";
 
+function formatDisplayDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}.${m}.${d}`;
+}
+
+function formatApiDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function Todolist() {
-  const [todos, setTodos] = useState<Todo[]>([
-    { id: "1", text: "아침 운동하기", completed: false },
-    { id: "2", text: "회의 준비", completed: false },
-    { id: "3", text: "React Native 공부", completed: true },
-    { id: "4", text: "장보기", completed: false },
-    { id: "5", text: "독서 30분", completed: false },
-  ]);
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [recurringTodos, setRecurringTodos] = useState<RecurringTodo[]>([]);
 
   const [selectedTab, setSelectedTab] = useState<TabType>("전체");
-  const [showMenu, setShowMenu] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState<number | null>(null);
   const [showTodoModal, setShowTodoModal] = useState(false);
   const [newTodoText, setNewTodoText] = useState("");
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
-  const [currentDate, setCurrentDate] = useState("2025.08.03");
+  const [editingRecurring, setEditingRecurring] =
+    useState<RecurringTodo | null>(null);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [loading, setLoading] = useState(false);
 
   const totalCount = todos.length;
-  const repeatCount = 0;
+  const repeatCount = recurringTodos.length;
+
+  const fetchTodos = useCallback(async () => {
+    setLoading(true);
+    try {
+      const dateString = formatApiDate(currentDate);
+      const res = await getTodos(dateString);
+      if (res.success && res.data) {
+        setTodos(res.data.todos);
+      }
+    } catch (e: any) {
+      Alert.alert("오류", e.message || "투두를 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentDate]);
+
+  const fetchRecurringTodos = useCallback(async () => {
+    try {
+      const res = await getRecurringTodos();
+      if (res.success && res.data) {
+        setRecurringTodos(res.data.recurringTodos);
+      }
+    } catch (e: any) {
+      Alert.alert("오류", e.message || "반복 투두를 불러오지 못했습니다.");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTodos();
+  }, [fetchTodos]);
+
+  useEffect(() => {
+    fetchRecurringTodos();
+  }, [fetchRecurringTodos]);
 
   const getSortedTodos = () => {
     return [...todos].sort((a, b) => {
-      if (a.completed === b.completed) return 0;
-      return a.completed ? 1 : -1;
+      if (a.isCompleted === b.isCompleted) return 0;
+      return a.isCompleted ? 1 : -1;
     });
   };
 
-  const toggleTodo = (id: string) => {
-    setTodos((prev) =>
-      prev.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      )
-    );
+  const handleToggleTodo = async (id: number) => {
+    try {
+      await toggleTodo(id);
+      await fetchTodos();
+    } catch (e: any) {
+      Alert.alert("오류", e.message || "상태 변경에 실패했습니다.");
+    }
   };
 
-  const deleteTodo = (id: string) => {
-    setTodos((prev) => prev.filter((todo) => todo.id !== id));
+  const handleDeleteTodo = async (id: number) => {
+    try {
+      await deleteTodo(id);
+      await fetchTodos();
+    } catch (e: any) {
+      Alert.alert("오류", e.message || "삭제에 실패했습니다.");
+    }
+    setShowMenu(null);
+  };
+
+  const handleDeleteRecurring = async (id: number) => {
+    try {
+      await deleteRecurringTodo(id);
+      await fetchRecurringTodos();
+    } catch (e: any) {
+      Alert.alert("오류", e.message || "삭제에 실패했습니다.");
+    }
     setShowMenu(null);
   };
 
   const editTodo = (todo: Todo) => {
     setEditingTodo(todo);
-    setNewTodoText(todo.text);
+    setEditingRecurring(null);
+    setNewTodoText(todo.content);
     setShowTodoModal(true);
     setShowMenu(null);
   };
 
-  const saveTodo = () => {
+  const editRecurring = (recurring: RecurringTodo) => {
+    setEditingRecurring(recurring);
+    setEditingTodo(null);
+    setNewTodoText(recurring.content);
+    setShowTodoModal(true);
+    setShowMenu(null);
+  };
+
+  const saveTodo = async () => {
     if (!newTodoText.trim()) return;
 
-    if (editingTodo) {
-      setTodos((prev) =>
-        prev.map((todo) =>
-          todo.id === editingTodo.id ? { ...todo, text: newTodoText } : todo
-        )
-      );
-    } else {
-      const newTodo: Todo = {
-        id: Date.now().toString(),
-        text: newTodoText,
-        completed: false,
-      };
-      setTodos((prev) => [...prev, newTodo]);
+    try {
+      if (selectedTab === "반복") {
+        if (editingRecurring) {
+          await updateRecurringTodo(editingRecurring.id, newTodoText.trim());
+        } else {
+          await createRecurringTodo(newTodoText.trim());
+        }
+        await fetchRecurringTodos();
+      } else {
+        if (editingTodo) {
+          await updateTodo(editingTodo.id, newTodoText.trim());
+        } else {
+          await createTodo(newTodoText.trim(), formatApiDate(currentDate));
+        }
+        await fetchTodos();
+      }
+    } catch (e: any) {
+      Alert.alert("오류", e.message || "저장에 실패했습니다.");
     }
 
     setNewTodoText("");
     setEditingTodo(null);
+    setEditingRecurring(null);
     setShowTodoModal(false);
   };
 
   const navigateDate = (direction: "back" | "forward") => {
-    // Date navigation placeholder
+    setCurrentDate((prev) => {
+      const next = new Date(prev);
+      next.setDate(next.getDate() + (direction === "forward" ? 1 : -1));
+      return next;
+    });
   };
 
   return (
@@ -107,7 +197,7 @@ function Todolist() {
               color={colors.black}
             />
           </Pressable>
-          <Text style={styles.dateText}>{currentDate}</Text>
+          <Text style={styles.dateText}>{formatDisplayDate(currentDate)}</Text>
           <Pressable onPress={() => navigateDate("forward")}>
             <MaterialIcons
               name="chevron-right"
@@ -209,72 +299,127 @@ function Todolist() {
 
         {/* Todo items list */}
         <View style={styles.todoList}>
-          {getSortedTodos().map((todo, index) => (
-            <View key={todo.id}>
-              <View style={styles.todoItem}>
-                <Pressable
-                  style={styles.checkbox}
-                  onPress={() => toggleTodo(todo.id)}
-                >
-                  <MaterialIcons
-                    name={
-                      todo.completed
-                        ? "radio-button-checked"
-                        : "radio-button-unchecked"
+          {loading ? (
+            <ActivityIndicator
+              size="large"
+              color={colors.black}
+              style={{ marginTop: 24 }}
+            />
+          ) : selectedTab === "전체" ? (
+            getSortedTodos().map((todo, index) => (
+              <View key={todo.id}>
+                <View style={styles.todoItem}>
+                  <Pressable
+                    style={styles.checkbox}
+                    onPress={() => handleToggleTodo(todo.id)}
+                  >
+                    <MaterialIcons
+                      name={
+                        todo.isCompleted
+                          ? "radio-button-checked"
+                          : "radio-button-unchecked"
+                      }
+                      size={16}
+                      color={colors.black}
+                    />
+                  </Pressable>
+
+                  <Text
+                    style={[
+                      styles.todoText,
+                      todo.isCompleted && styles.todoTextCompleted,
+                    ]}
+                  >
+                    {todo.content}
+                  </Text>
+
+                  <Pressable
+                    style={styles.moreButton}
+                    onPress={() =>
+                      setShowMenu(showMenu === todo.id ? null : todo.id)
                     }
-                    size={16}
-                    color={colors.black}
-                  />
-                </Pressable>
+                  >
+                    <MaterialIcons
+                      name="more-horiz"
+                      size={24}
+                      color={colors.black}
+                    />
+                  </Pressable>
 
-                <Text
-                  style={[
-                    styles.todoText,
-                    todo.completed && styles.todoTextCompleted,
-                  ]}
-                >
-                  {todo.text}
-                </Text>
+                  {/* Menu popup */}
+                  {showMenu === todo.id && (
+                    <View style={styles.menuPopup}>
+                      <Pressable
+                        style={styles.menuItem}
+                        onPress={() => editTodo(todo)}
+                      >
+                        <Text style={styles.menuItemText}>수정</Text>
+                      </Pressable>
+                      <View style={styles.menuDivider} />
+                      <Pressable
+                        style={styles.menuItem}
+                        onPress={() => handleDeleteTodo(todo.id)}
+                      >
+                        <Text style={styles.menuItemText}>삭제</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
 
-                <Pressable
-                  style={styles.moreButton}
-                  onPress={() =>
-                    setShowMenu(showMenu === todo.id ? null : todo.id)
-                  }
-                >
-                  <MaterialIcons
-                    name="more-horiz"
-                    size={24}
-                    color={colors.black}
-                  />
-                </Pressable>
-
-                {/* Menu popup */}
-                {showMenu === todo.id && (
-                  <View style={styles.menuPopup}>
-                    <Pressable
-                      style={styles.menuItem}
-                      onPress={() => editTodo(todo)}
-                    >
-                      <Text style={styles.menuItemText}>수정</Text>
-                    </Pressable>
-                    <View style={styles.menuDivider} />
-                    <Pressable
-                      style={styles.menuItem}
-                      onPress={() => deleteTodo(todo.id)}
-                    >
-                      <Text style={styles.menuItemText}>삭제</Text>
-                    </Pressable>
-                  </View>
+                {/* Separator line */}
+                {index < getSortedTodos().length - 1 && (
+                  <View style={styles.separator} />
                 )}
               </View>
+            ))
+          ) : (
+            recurringTodos.map((recurring, index) => (
+              <View key={recurring.id}>
+                <View style={styles.todoItem}>
+                  <Text style={styles.todoText}>{recurring.content}</Text>
 
-              {/* Separator line */}
-              {index < getSortedTodos().length - 1 && (
-                <View style={styles.separator} />
-              )}
-            </View>
-          ))}
+                  <Pressable
+                    style={styles.moreButton}
+                    onPress={() =>
+                      setShowMenu(
+                        showMenu === recurring.id ? null : recurring.id
+                      )
+                    }
+                  >
+                    <MaterialIcons
+                      name="more-horiz"
+                      size={24}
+                      color={colors.black}
+                    />
+                  </Pressable>
+
+                  {/* Menu popup */}
+                  {showMenu === recurring.id && (
+                    <View style={styles.menuPopup}>
+                      <Pressable
+                        style={styles.menuItem}
+                        onPress={() => editRecurring(recurring)}
+                      >
+                        <Text style={styles.menuItemText}>수정</Text>
+                      </Pressable>
+                      <View style={styles.menuDivider} />
+                      <Pressable
+                        style={styles.menuItem}
+                        onPress={() => handleDeleteRecurring(recurring.id)}
+                      >
+                        <Text style={styles.menuItemText}>삭제</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+
+                {/* Separator line */}
+                {index < recurringTodos.length - 1 && (
+                  <View style={styles.separator} />
+                )}
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -283,6 +428,7 @@ function Todolist() {
         style={styles.floatingButton}
         onPress={() => {
           setEditingTodo(null);
+          setEditingRecurring(null);
           setNewTodoText("");
           setShowTodoModal(true);
         }}
@@ -303,6 +449,7 @@ function Todolist() {
             setShowTodoModal(false);
             setNewTodoText("");
             setEditingTodo(null);
+            setEditingRecurring(null);
           }}
         >
           <View
@@ -310,7 +457,7 @@ function Todolist() {
             onStartShouldSetResponder={() => true}
           >
             <Text style={styles.modalTitle}>
-              {editingTodo ? "투두 수정" : "투두 추가"}
+              {editingTodo || editingRecurring ? "투두 수정" : "투두 추가"}
             </Text>
             <TextInput
               style={styles.modalInput}
@@ -327,6 +474,7 @@ function Todolist() {
                   setShowTodoModal(false);
                   setNewTodoText("");
                   setEditingTodo(null);
+                  setEditingRecurring(null);
                 }}
               >
                 <Text style={styles.modalButtonCancelText}>취소</Text>
@@ -336,7 +484,7 @@ function Todolist() {
                 onPress={saveTodo}
               >
                 <Text style={styles.modalButtonConfirmText}>
-                  {editingTodo ? "수정" : "추가"}
+                  {editingTodo || editingRecurring ? "수정" : "추가"}
                 </Text>
               </Pressable>
             </View>

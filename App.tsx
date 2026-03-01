@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { useFonts } from "expo-font";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
+import { AuthProvider } from "./context/auth-context";
 import SplashScreen from "./app/splash";
 import Onboarding from "./app/onboarding";
 import TermsAgreement from "./app/terms-agreement";
@@ -34,15 +35,17 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Onboarding" component={Onboarding} />
-        <Stack.Screen name="TermsAgreement" component={TermsAgreement} />
-        <Stack.Screen name="PrivacyAgreement" component={PrivacyAgreement} />
-        <Stack.Screen name="CountrySelect" component={CountrySelect} />
-        <Stack.Screen name="Main" component={BottomTab} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <AuthProvider>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Onboarding" component={Onboarding} />
+          <Stack.Screen name="TermsAgreement" component={TermsAgreement} />
+          <Stack.Screen name="PrivacyAgreement" component={PrivacyAgreement} />
+          <Stack.Screen name="CountrySelect" component={CountrySelect} />
+          <Stack.Screen name="Main" component={BottomTab} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </AuthProvider>
   );
 }
 

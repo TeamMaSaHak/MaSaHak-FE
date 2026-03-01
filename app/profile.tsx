@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -6,27 +6,63 @@ import {
   Pressable,
   ScrollView,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
+import { useAuth } from "../context/auth-context";
+import { getProfile, MemberProfile } from "../services/members";
 
 function Profile() {
   const navigation = useNavigation<any>();
+  const { user, logout } = useAuth();
+  const [profile, setProfile] = useState<MemberProfile | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Mock user data
-  const userProfile = {
-    name: "고요비",
-    studentId: "202508031",
-    grade: "2학년",
-    dormitory: "소용돌이 기숙사",
-    profileImage: null as string | null,
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const res = await getProfile();
+      if (res.success && res.data) {
+        setProfile(res.data);
+      }
+    } catch (error) {
+      console.error("프로필 조회 실패:", error);
+    }
   };
 
+  const displayName = profile?.nickname || user?.nickname || "";
+  const displayStudentNo = profile?.studentNo || user?.studentNo || "";
+  const displayGrade = profile?.gradeName
+    ? profile.gradeName
+    : profile?.grade
+    ? `${profile.grade}학년`
+    : "";
+  const displayDormitory = profile?.dormitory || user?.dormitory || "";
+  const displayProfileImage =
+    profile?.profileImage || user?.profileImage || null;
+
   // 로그아웃
-  const handleLogout = () => {
-    console.log("로그아웃");
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+
+    try {
+      await logout();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Onboarding" }],
+      });
+    } catch (error) {
+      console.error("로그아웃 실패:", error);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   // Settings grid items
@@ -72,9 +108,9 @@ function Profile() {
 
           {/* Profile Image */}
           <View style={styles.profileImageContainer}>
-            {userProfile.profileImage ? (
+            {displayProfileImage ? (
               <Image
-                source={{ uri: userProfile.profileImage }}
+                source={{ uri: displayProfileImage }}
                 style={styles.profileImage}
               />
             ) : (
@@ -89,14 +125,14 @@ function Profile() {
           </View>
 
           {/* Name */}
-          <Text style={styles.profileName}>{userProfile.name}</Text>
+          <Text style={styles.profileName}>{displayName}</Text>
 
           {/* Info Lines */}
           <View style={styles.infoContainer}>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>학번</Text>
               <View style={styles.infoDivider} />
-              <Text style={styles.infoValue}>{userProfile.studentId}</Text>
+              <Text style={styles.infoValue}>{displayStudentNo}</Text>
             </View>
 
             <View style={styles.infoSeparator} />
@@ -104,7 +140,7 @@ function Profile() {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>학년</Text>
               <View style={styles.infoDivider} />
-              <Text style={styles.infoValue}>{userProfile.grade}</Text>
+              <Text style={styles.infoValue}>{displayGrade}</Text>
             </View>
 
             <View style={styles.infoSeparator} />
@@ -112,7 +148,7 @@ function Profile() {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>기숙사</Text>
               <View style={styles.infoDivider} />
-              <Text style={styles.infoValue}>{userProfile.dormitory}</Text>
+              <Text style={styles.infoValue}>{displayDormitory}</Text>
             </View>
           </View>
         </View>
@@ -146,8 +182,16 @@ function Profile() {
         </View>
 
         {/* Logout Button */}
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>로그아웃</Text>
+        <Pressable
+          style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
+          onPress={handleLogout}
+          disabled={isLoggingOut}
+        >
+          {isLoggingOut ? (
+            <ActivityIndicator size="small" color={colors.white} />
+          ) : (
+            <Text style={styles.logoutButtonText}>로그아웃</Text>
+          )}
         </Pressable>
       </ScrollView>
     </View>
@@ -295,6 +339,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: 24,
+  },
+  logoutButtonDisabled: {
+    opacity: 0.7,
   },
   logoutButtonText: {
     fontFamily: "Pretendard-Bold",

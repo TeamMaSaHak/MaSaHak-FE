@@ -10,6 +10,13 @@ import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
+import { startTimer, stopTimer, pauseTimer, resumeTimer } from "../services/timer";
+import {
+  startPomodoro,
+  stopPomodoro,
+  completeCycle,
+  getSettings,
+} from "../services/pomodoro";
 
 type TimerMode = "timer" | "pomodoro";
 type PomodoroPhase = "focus" | "break";
@@ -34,6 +41,12 @@ function Home() {
   const [currentPhase, setCurrentPhase] = useState<PomodoroPhase>("focus");
   const [pomodoroSeconds, setPomodoroSeconds] = useState(focusMinutes * 60);
 
+  // API session tracking
+  const sessionIdRef = useRef<number | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const pomodoroElapsedRef = useRef(0);
+  const focusPhaseElapsedRef = useRef(0);
+
   // Toggle animation
   const toggleAnim = useRef(new Animated.Value(0)).current;
 
@@ -52,14 +65,112 @@ function Home() {
     navigation.navigate("Todolist");
   };
 
+  // Load saved pomodoro settings on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getSettings();
+        if (res.success && res.data) {
+          setFocusMinutes(res.data.focusTime);
+          setBreakMinutes(res.data.breakTime);
+          setTotalCycles(res.data.repeatCount);
+          setPomodoroSeconds(res.data.focusTime * 60);
+        }
+      } catch (error) {
+        // Graceful degradation: use default settings if API fails
+      }
+    })();
+  }, []);
+
   // Toggle timer start/pause
   const toggleTimer = () => {
+    if (!isRunning) {
+      // Starting or resuming
+      if (isPaused) {
+        // Resuming from pause
+        handleResume();
+      } else {
+        // Fresh start
+        handleStart();
+      }
+    } else {
+      // Pausing
+      handlePause();
+    }
     setIsRunning(!isRunning);
   };
 
+  const handleStart = async () => {
+    try {
+      if (mode === "timer") {
+        const result = await startTimer();
+        if (result.success && result.data) {
+          sessionIdRef.current = result.data.sessionId;
+        }
+      } else {
+        const result = await startPomodoro({
+          focusTime: focusMinutes,
+          breakTime: breakMinutes,
+          repeatCount: totalCycles,
+        });
+        if (result.success && result.data) {
+          sessionIdRef.current = result.data.sessionId;
+        }
+        pomodoroElapsedRef.current = 0;
+        focusPhaseElapsedRef.current = 0;
+      }
+    } catch (error) {
+      // Graceful degradation: allow local timer to work even if API fails
+    }
+  };
+
+  const handlePause = async () => {
+    setIsPaused(true);
+    try {
+      if (mode === "timer" && sessionIdRef.current !== null) {
+        await pauseTimer(sessionIdRef.current);
+      }
+    } catch (error) {
+      // Graceful degradation
+    }
+  };
+
+  const handleResume = async () => {
+    setIsPaused(false);
+    try {
+      if (mode === "timer" && sessionIdRef.current !== null) {
+        await resumeTimer(sessionIdRef.current);
+      }
+    } catch (error) {
+      // Graceful degradation
+    }
+  };
+
   // Reset timer
-  const resetTimer = () => {
+  const resetTimer = async () => {
     setIsRunning(false);
+    setIsPaused(false);
+
+    try {
+      if (sessionIdRef.current !== null) {
+        if (mode === "timer") {
+          await stopTimer(sessionIdRef.current, stopwatchSeconds);
+        } else {
+          await stopPomodoro(
+            sessionIdRef.current,
+            pomodoroElapsedRef.current,
+            currentCycle
+          );
+        }
+      }
+    } catch (error) {
+      // Graceful degradation
+    }
+
+    sessionIdRef.current = null;
+    pomodoroElapsedRef.current = 0;
+    focusPhaseElapsedRef.current = 0;
+
     if (mode === "timer") {
       setStopwatchSeconds(0);
     } else {
@@ -70,9 +181,31 @@ function Home() {
   };
 
   // Switch mode
-  const switchMode = (newMode: TimerMode) => {
+  const switchMode = async (newMode: TimerMode) => {
     if (mode === newMode) return;
     setIsRunning(false);
+    setIsPaused(false);
+
+    // Stop any active session before switching
+    try {
+      if (sessionIdRef.current !== null) {
+        if (mode === "timer") {
+          await stopTimer(sessionIdRef.current, stopwatchSeconds);
+        } else {
+          await stopPomodoro(
+            sessionIdRef.current,
+            pomodoroElapsedRef.current,
+            currentCycle
+          );
+        }
+      }
+    } catch (error) {
+      // Graceful degradation
+    }
+
+    sessionIdRef.current = null;
+    pomodoroElapsedRef.current = 0;
+    focusPhaseElapsedRef.current = 0;
 
     Animated.timing(toggleAnim, {
       toValue: newMode === "pomodoro" ? 1 : 0,
@@ -95,14 +228,31 @@ function Home() {
   // Pomodoro next phase
   const nextPomodoroPhase = () => {
     if (currentPhase === "focus") {
+      const newCycle = currentCycle + 1;
+
+      // Report cycle completion to API
+      if (sessionIdRef.current !== null) {
+        try {
+          completeCycle(
+            sessionIdRef.current,
+            newCycle,
+            focusPhaseElapsedRef.current
+          );
+        } catch (error) {
+          // Graceful degradation
+        }
+      }
+
+      focusPhaseElapsedRef.current = 0;
       setCurrentPhase("break");
       setPomodoroSeconds(breakMinutes * 60);
-      setCurrentCycle((prev) => prev + 1);
+      setCurrentCycle(newCycle);
     } else {
       if (currentCycle >= totalCycles) {
         setIsRunning(false);
         resetTimer();
       } else {
+        focusPhaseElapsedRef.current = 0;
         setCurrentPhase("focus");
         setPomodoroSeconds(focusMinutes * 60);
       }
@@ -116,6 +266,10 @@ function Home() {
         if (mode === "timer") {
           setStopwatchSeconds((prev) => prev + 1);
         } else {
+          pomodoroElapsedRef.current += 1;
+          if (currentPhase === "focus") {
+            focusPhaseElapsedRef.current += 1;
+          }
           setPomodoroSeconds((prev) => {
             if (prev <= 1) {
               nextPomodoroPhase();

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -10,6 +10,11 @@ import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
+import {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+} from "../services/notifications";
 
 interface Notification {
   id: string;
@@ -21,33 +26,42 @@ interface Notification {
 function Notifications() {
   const navigation = useNavigation();
 
-  // Mock notification data
-  const notifications: Notification[] = [
-    {
-      id: "1",
-      title: "새로운 공지사항",
-      description: "2학기 기숙사 배정 결과가 발표되었습니다.",
-      isRead: false,
-    },
-    {
-      id: "2",
-      title: "일정 알림",
-      description: "내일 오전 9시 마법 실습 수업이 있습니다.",
-      isRead: false,
-    },
-    {
-      id: "3",
-      title: "과제 알림",
-      description: "마법 역사 레포트 제출 마감이 3일 남았습니다.",
-      isRead: true,
-    },
-    {
-      id: "4",
-      title: "시스템 알림",
-      description: "앱이 최신 버전으로 업데이트되었습니다.",
-      isRead: true,
-    },
-  ];
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await getNotifications();
+        if (res.success && res.data) {
+          const mapped: Notification[] = res.data.notifications.map((n) => ({
+            id: String(n.id),
+            title: n.title,
+            description: n.body,
+            isRead: n.isRead,
+          }));
+          setNotifications(mapped);
+        }
+      } catch (e) {
+        console.error("Failed to fetch notifications:", e);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  const handleNotificationPress = async (notificationId: string) => {
+    try {
+      const res = await markAsRead(Number(notificationId));
+      if (res.success) {
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notificationId ? { ...n, isRead: true } : n
+          )
+        );
+      }
+    } catch (e) {
+      console.error("Failed to mark notification as read:", e);
+    }
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -61,7 +75,11 @@ function Notifications() {
       showsVerticalScrollIndicator={false}
     >
       {notifications.map((notification) => (
-        <Pressable key={notification.id} style={styles.notificationItem}>
+        <Pressable
+          key={notification.id}
+          style={styles.notificationItem}
+          onPress={() => handleNotificationPress(notification.id)}
+        >
           <View style={styles.notificationContent}>
             <View style={styles.notificationHeader}>
               <Text style={styles.notificationTitle}>
