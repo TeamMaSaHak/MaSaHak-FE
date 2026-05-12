@@ -6,9 +6,12 @@ import {
   Pressable,
   TextInput,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
 import { getDiary, saveDiary } from "../services/diary";
@@ -18,6 +21,7 @@ type ViewMode = "writing" | "saved" | "aiReply";
 function Diary() {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { date } = (route.params as { date?: string }) ?? {};
 
   // Parse the date string into parts for navigation
@@ -26,9 +30,14 @@ function Diary() {
     return { year: y, month: m, day: d };
   };
 
+  const todayNow = new Date();
   const initialParts = date
     ? parseDateParts(date)
-    : { year: 2025, month: 8, day: 3 };
+    : {
+        year: todayNow.getFullYear(),
+        month: todayNow.getMonth() + 1,
+        day: todayNow.getDate(),
+      };
 
   const [currentYear, setCurrentYear] = useState(initialParts.year);
   const [currentMonth, setCurrentMonth] = useState(initialParts.month);
@@ -126,10 +135,12 @@ function Diary() {
     }
   };
 
-  // Check if there is a next date (for graying out forward arrow)
-  const today = new Date();
-  const currentDateObj = new Date(currentYear, currentMonth - 1, currentDay);
-  const hasNext = currentDateObj < today;
+  // Check if there is a next date (for graying out forward arrow).
+  // Compare at day granularity so today's arrow is disabled.
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const currentStart = new Date(currentYear, currentMonth - 1, currentDay).getTime();
+  const hasNext = currentStart < todayStart;
 
   const handleSave = async () => {
     if (diaryText.trim().length === 0) return;
@@ -164,7 +175,11 @@ function Diary() {
   // Writing mode
   if (viewMode === "writing") {
     return (
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={[styles.innerContainer, { paddingTop: insets.top + 50 }]}>
         <Topbar
           title="일기"
           left={
@@ -221,6 +236,7 @@ function Diary() {
               placeholder="일기를 작성해 주세요..."
               placeholderTextColor={colors.gray300}
               multiline
+              maxLength={5000}
               value={diaryText}
               onChangeText={setDiaryText}
               textAlignVertical="top"
@@ -231,20 +247,25 @@ function Diary() {
 
         {/* Save button */}
         <Pressable
-          style={[styles.bottomButton, (isLocked || !canEdit) && { opacity: 0.4 }]}
+          style={[
+            styles.bottomButton,
+            { bottom: 16 },
+            (isLocked || !canEdit) && { opacity: 0.4 },
+          ]}
           onPress={handleSave}
           disabled={isLocked || !canEdit}
         >
           <Text style={styles.bottomButtonText}>저장하기</Text>
         </Pressable>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     );
   }
 
   // Saved diary view (after writing)
   if (viewMode === "saved") {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top + 50 }]}>
         <Topbar
           title="일기"
           left={
@@ -301,7 +322,10 @@ function Diary() {
 
         {/* Show AI reply button if reply exists */}
         {aiReplyText && (
-          <Pressable style={styles.bottomButton} onPress={handleGoToAiReply}>
+          <Pressable
+            style={[styles.bottomButton, { bottom: 16 }]}
+            onPress={handleGoToAiReply}
+          >
             <Text style={styles.bottomButtonText}>답장 보러 가기</Text>
           </Pressable>
         )}
@@ -312,7 +336,7 @@ function Diary() {
   // AI Reply view
   if (viewMode === "aiReply") {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top + 50 }]}>
         <Topbar
           title="일기"
           left={
@@ -368,7 +392,10 @@ function Diary() {
         </ScrollView>
 
         {/* Go back to diary button */}
-        <Pressable style={styles.bottomButton} onPress={handleGoToDiary}>
+        <Pressable
+          style={[styles.bottomButton, { bottom: 16 }]}
+          onPress={handleGoToDiary}
+        >
           <Text style={styles.bottomButtonText}>일기 보러 가기</Text>
         </Pressable>
       </View>
@@ -385,7 +412,10 @@ const LINE_WIDTH = 258;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50,
+    backgroundColor: colors.white,
+  },
+  innerContainer: {
+    flex: 1,
     backgroundColor: colors.white,
   },
   scrollView: {
@@ -394,7 +424,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     alignItems: "center",
     paddingHorizontal: 24,
-    paddingBottom: 120,
+    paddingBottom: 100,
   },
   dateNav: {
     flexDirection: "row",
@@ -443,7 +473,6 @@ const styles = StyleSheet.create({
   },
   bottomButton: {
     position: "absolute",
-    bottom: 110,
     alignSelf: "center",
     width: 240,
     height: 50,
@@ -451,6 +480,11 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   bottomButtonText: {
     fontFamily: "Pretendard-Regular",

@@ -57,3 +57,7 @@ export function deleteRecurringTodo(recurringId: number) {
     `/api/todos/recurring/${recurringId}`
   );
 }
+
+export function reorderTodos(items: { id: number; order: number }[]) {
+  return patch<{ updated: boolean }>("/api/todos/reorder", { items });
+}

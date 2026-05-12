@@ -7,23 +7,113 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Alert,
+  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
 import { useAuth } from "../context/auth-context";
 import { getProfile, MemberProfile } from "../services/members";
+import { getUnreadCount } from "../services/notifications";
+import {
+  getNotificationSettings,
+  updateNotificationSettings,
+} from "../services/settings";
 
 function Profile() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [isTogglingPush, setIsTogglingPush] = useState(false);
 
   useEffect(() => {
     fetchProfile();
+    (async () => {
+      try {
+        const res = await getUnreadCount();
+        if (res.success && res.data) {
+          setUnreadCount(res.data.count);
+        }
+      } catch {}
+    })();
+    (async () => {
+      try {
+        const res = await getNotificationSettings();
+        if (res.success && res.data) {
+          setPushEnabled(res.data.pushEnabled);
+        }
+      } catch {}
+    })();
   }, []);
+
+  const handleTogglePush = async () => {
+    if (isTogglingPush) return;
+    const next = !pushEnabled;
+    setIsTogglingPush(true);
+    setPushEnabled(next); // optimistic
+    try {
+      const res = await updateNotificationSettings(next);
+      if (!res.success) {
+        setPushEnabled(!next); // rollback
+      }
+    } catch {
+      setPushEnabled(!next);
+    } finally {
+      setIsTogglingPush(false);
+    }
+  };
+
+  const TEST_MESSAGES = [
+    "오늘 투두 아직 안 끝났어요 📝",
+    "뽀모도로 한 사이클 어때요?",
+    "잠깐, 일기 쓰셨나요?",
+    "공부 1시간 달성! 🎉",
+    "견습마법사님, 집중 시간이에요 🪄",
+    "친구가 같이 공부하고 있어요",
+    "타이머가 기다리고 있어요 ⏱️",
+    "오늘의 목표에 한 발짝 더!",
+    "쉬는 시간 끝! 다시 집중 😤",
+    "새로운 답장이 도착했어요 💌",
+  ];
+
+  const handleSendTestNotification = async () => {
+    if (Platform.OS === "web") {
+      Alert.alert("안내", "웹에서는 테스트 알림이 동작하지 않아요.");
+      return;
+    }
+    try {
+      const Notifications = await import("expo-notifications");
+
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== "granted") {
+        Alert.alert("권한 필요", "알림 권한을 허용해주세요.");
+        return;
+      }
+
+      const msg = TEST_MESSAGES[Math.floor(Math.random() * TEST_MESSAGES.length)];
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "마사학",
+          body: msg,
+        },
+        trigger: null,
+      });
+    } catch (e) {
+      Alert.alert("오류", "알림 전송에 실패했습니다.");
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -73,9 +163,11 @@ function Profile() {
       onPress: () => navigation.navigate("AllowedApps"),
     },
     {
-      icon: "notifications-active" as const,
-      label: "알림",
-      onPress: () => navigation.navigate("Notifications"),
+      icon: (pushEnabled ? "notifications-active" : "notifications-off") as
+        | "notifications-active"
+        | "notifications-off",
+      label: pushEnabled ? "알림 ON" : "알림 OFF",
+      onPress: handleTogglePush,
     },
     {
       icon: "assignment" as const,
@@ -95,10 +187,11 @@ function Profile() {
         title="마이 페이지"
         right={<MaterialIcons name="mail" size={22} color={colors.black} />}
         onRightPress={() => navigation.navigate("Notifications")}
+        rightBadge={unreadCount}
       />
 
       <ScrollView
-        style={styles.content}
+        style={[styles.content, { paddingTop: insets.top + 50 }]}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
@@ -181,7 +274,7 @@ function Profile() {
           ))}
         </View>
 
-        {/* Logout Button */}
+        {/* Action Button */}
         <Pressable
           style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
           onPress={handleLogout}
@@ -190,8 +283,18 @@ function Profile() {
           {isLoggingOut ? (
             <ActivityIndicator size="small" color={colors.white} />
           ) : (
-            <Text style={styles.logoutButtonText}>로그아웃</Text>
+            <Text style={styles.logoutButtonText}>
+              {user ? "로그아웃" : "입학하기"}
+            </Text>
           )}
+        </Pressable>
+
+        {/* Test notification (dev helper) */}
+        <Pressable
+          style={styles.testNotifButton}
+          onPress={handleSendTestNotification}
+        >
+          <Text style={styles.testNotifButtonText}>🔔 테스트 알림 보내기</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -207,22 +310,23 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 50,
   },
   contentContainer: {
     alignItems: "center",
     paddingTop: 24,
-    paddingBottom: 120,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
   },
 
   // Student Card
   studentCard: {
-    width: 300,
-    height: 402,
+    width: "100%",
+    maxWidth: 300,
     backgroundColor: colors.white,
     borderRadius: 12,
     alignItems: "center",
     paddingTop: 24,
+    paddingBottom: 24,
     paddingHorizontal: 24,
   },
   cardTitle: {
@@ -301,14 +405,13 @@ const styles = StyleSheet.create({
   // Settings Grid
   settingsGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    width: 300,
+    alignSelf: "stretch",
     marginTop: 16,
-    gap: 12,
+    gap: 8,
     justifyContent: "center",
   },
   settingsItem: {
-    width: 144,
+    flex: 1,
     height: 80,
     backgroundColor: colors.white,
     borderRadius: 12,
@@ -348,5 +451,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.white,
+  },
+  testNotifButton: {
+    width: 240,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    backgroundColor: colors.white,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+  },
+  testNotifButtonText: {
+    fontFamily: "Pretendard-Regular",
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.gray300,
   },
 });

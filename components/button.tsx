@@ -140,7 +140,8 @@ export const TabChip = ({
 const styles = StyleSheet.create({
   // BigButton
   bigButton: {
-    width: 342,
+    width: "100%",
+    maxWidth: 342,
     height: 70,
     borderRadius: 35,
     backgroundColor: colors.black,

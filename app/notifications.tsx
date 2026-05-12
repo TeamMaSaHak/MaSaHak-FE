@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
@@ -25,8 +26,10 @@ interface Notification {
 
 function Notifications() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const hasUnread = notifications.some((n) => !n.isRead);
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -47,6 +50,17 @@ function Notifications() {
     };
     fetchNotifications();
   }, []);
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      const res = await markAllAsRead();
+      if (res.success) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      }
+    } catch (e) {
+      console.error("Failed to mark all as read:", e);
+    }
+  };
 
   const handleNotificationPress = async (notificationId: string) => {
     try {
@@ -108,9 +122,17 @@ function Notifications() {
           />
         }
         onLeftPress={() => navigation.goBack()}
+        right={
+          hasUnread ? (
+            <Text style={{ fontFamily: "Pretendard-Regular", fontSize: 12, color: colors.black }}>
+              전체 읽음
+            </Text>
+          ) : undefined
+        }
+        onRightPress={hasUnread ? handleMarkAllAsRead : undefined}
       />
 
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingTop: insets.top + 50 }]}>
         {notifications.length === 0
           ? renderEmptyState()
           : renderNotificationList()}
@@ -128,7 +150,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 50,
   },
   listContainer: {
     flex: 1,
@@ -136,7 +157,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   notificationItem: {
-    width: 342,
     minHeight: 68,
     backgroundColor: colors.white,
     borderRadius: 12,

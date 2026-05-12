@@ -2,7 +2,8 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { MaterialIcons } from "@expo/vector-icons";
-import { StyleSheet } from "react-native";
+import { StyleSheet, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Home from "../app/home";
 import Calendar from "../app/calendar";
@@ -13,6 +14,7 @@ import Terms from "../app/terms";
 import Privacy from "../app/privacy";
 import Notifications from "../app/notifications";
 import AllowedApps from "../app/allowed-apps";
+import Settings from "../app/settings";
 import { colors } from "../constants/colors";
 
 const Tab = createBottomTabNavigator();
@@ -47,6 +49,7 @@ const ProfileStack = () => {
       <ProfileStackNav.Screen name="Privacy" component={Privacy} />
       <ProfileStackNav.Screen name="Notifications" component={Notifications} />
       <ProfileStackNav.Screen name="AllowedApps" component={AllowedApps} />
+      <ProfileStackNav.Screen name="Settings" component={Settings} />
     </ProfileStackNav.Navigator>
   );
 };
@@ -60,10 +63,24 @@ const TAB_ICONS: Record<string, TabIconName> = {
 };
 
 export const BottomTab = () => {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const tabWidth = Math.min(342, width - 24);
+  const bottomOffset = Math.max(insets.bottom, 16);
+  const tabBarTotalHeight = 60 + bottomOffset + 16;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarStyle: styles.container,
+        sceneStyle: { paddingBottom: tabBarTotalHeight },
+        tabBarStyle: [
+          styles.container,
+          {
+            width: tabWidth,
+            left: (width - tabWidth) / 2,
+            bottom: bottomOffset,
+          },
+        ],
         tabBarShowLabel: false,
         tabBarIcon: ({ color }) => {
           const iconName = TAB_ICONS[route.name] ?? "home";
@@ -84,12 +101,9 @@ export const BottomTab = () => {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    width: 342,
     height: 60,
     borderRadius: 45,
     backgroundColor: colors.white,
-    bottom: 34,
-    left: (390 - 342) / 2,
     justifyContent: "center",
     paddingTop: 12,
     paddingBottom: 16,

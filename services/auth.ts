@@ -1,4 +1,5 @@
-import { get, post, setTokens, clearTokens } from "./api-client";
+import { get, post, clearTokens } from "./api-client";
+import { API_BASE_URL } from "../constants/api";
 
 export interface UserInfo {
   userId: string;
@@ -12,36 +13,17 @@ export interface UserInfo {
   timezone: string;
 }
 
-interface LoginCallbackData {
-  tokens: { accessToken: string; refreshToken: string; expiresIn: number };
-  user: UserInfo;
-  isMember: boolean;
-}
-
 interface VerifyMemberData {
   isMember: boolean;
   user: UserInfo;
 }
 
-export async function getDiscordLoginUrl() {
-  return get<{ redirectUrl: string }>("/api/auth/discord");
-}
-
-export async function loginWithDiscordCallback(
-  code: string,
-  timezone?: string
-) {
-  const tz = timezone || "Asia/Seoul";
-  const res = await get<LoginCallbackData>(
-    `/api/auth/discord/callback?code=${code}&timezone=${tz}`
-  );
-  if (res.success && res.data) {
-    await setTokens(
-      res.data.tokens.accessToken,
-      res.data.tokens.refreshToken
-    );
-  }
-  return res;
+// Backend's /api/auth/discord 302-redirects to Discord's OAuth page.
+// On success, Discord → backend callback → 302 to masahak://login?accessToken=...
+// The mobile app captures the deep link via WebBrowser.openAuthSessionAsync
+// and onboarding.tsx parses tokens directly from the URL — no extra API call.
+export function getDiscordAuthUrl(): string {
+  return `${API_BASE_URL}/api/auth/discord`;
 }
 
 export async function verifyMember() {
@@ -49,7 +31,9 @@ export async function verifyMember() {
 }
 
 export async function logout() {
-  const res = await post<{ message: string }>("/api/auth/logout");
-  await clearTokens();
-  return res;
+  try {
+    return await post<{ message: string }>("/api/auth/logout");
+  } finally {
+    await clearTokens();
+  }
 }

@@ -1,16 +1,22 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { StyleSheet, View, Text, Pressable, ScrollView } from "react-native";
+import { StyleSheet, View, Text, Pressable, ScrollView, useWindowDimensions } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
-import { getMonthlyCalendar, getMonthlyStats } from "../services/calendar";
+import { getMonthlyCalendar, getMonthlyStats, getDailyStats, DailyStats } from "../services/calendar";
 
 function Calendar() {
   const navigation = useNavigation();
-  const [currentYear, setCurrentYear] = useState(2025);
-  const [currentMonth, setCurrentMonth] = useState(6); // 0-indexed (6 = July)
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const cellWidth = Math.floor((screenWidth - 48) / 7); // 48 = paddingHorizontal 24 * 2
+  const now = new Date();
+  const [currentYear, setCurrentYear] = useState(now.getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(now.getMonth()); // 0-indexed
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
+  const [dailyStats, setDailyStats] = useState<DailyStats | null>(null);
 
   // Attendance dates (dates the user was present / studied)
   const [attendanceDates, setAttendanceDates] = useState<Set<string>>(
@@ -19,10 +25,10 @@ function Calendar() {
 
   // Monthly stats
   const [monthlyStats, setMonthlyStats] = useState([
-    { title: "이번 달 총 출석 횟수", value: 0, unit: "회" },
-    { title: "이번 달 총 집중 시간", value: 0, unit: "분" },
-    { title: "이번 달 평균 집중 시간", value: 0, unit: "분" },
-    { title: "이번 달 완료한 투두 리스트 수", value: 0, unit: "개" },
+    { title: "공부한 시간", value: "-", unit: "" },
+    { title: "전일 대비 공부한 시간", value: "-", unit: "" },
+    { title: "공부 시작 시간", value: "-", unit: "" },
+    { title: "가장 길게 집중한 시간", value: "-", unit: "" },
   ]);
 
   const fetchCalendarData = useCallback(async () => {
@@ -46,19 +52,15 @@ function Calendar() {
       const statsRes = await getMonthlyStats(currentYear, apiMonth);
       if (statsRes.success && statsRes.data) {
         const s = statsRes.data;
+        const totalHrs = Math.floor(s.totalMinutes / 60);
+        const totalMins = s.totalMinutes % 60;
+        const avgHrs = Math.floor(s.averageMinutesPerDay / 60);
+        const avgMins = s.averageMinutesPerDay % 60;
         setMonthlyStats([
-          { title: "이번 달 총 출석 횟수", value: s.attendanceDays, unit: "회" },
-          { title: "이번 달 총 집중 시간", value: s.totalMinutes, unit: "분" },
-          {
-            title: "이번 달 평균 집중 시간",
-            value: s.averageMinutesPerDay,
-            unit: "분",
-          },
-          {
-            title: "이번 달 완료한 투두 리스트 수",
-            value: s.completedTodos,
-            unit: "개",
-          },
+          { title: "공부한 시간", value: totalHrs > 0 ? `${totalHrs}시간 ${totalMins}분` : `${totalMins}분`, unit: "" },
+          { title: "전일 대비 공부한 시간", value: "-", unit: "" },
+          { title: "공부 시작 시간", value: "-", unit: "" },
+          { title: "가장 길게 집중한 시간", value: "-", unit: "" },
         ]);
       }
     } catch (e) {
@@ -119,13 +121,31 @@ function Calendar() {
   const hasAttendance = (day: number) =>
     attendanceDates.has(formatDateString(day));
 
-  const selectDate = (day: number) => {
+  const selectDate = async (day: number) => {
     setSelectedDate(day);
+    setDailyStats(null);
+    const dateStr = formatDateString(day);
+    try {
+      const res = await getDailyStats(dateStr);
+      if (res.success && res.data) {
+        setDailyStats(res.data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch daily stats:", e);
+    }
   };
 
   const handleGoToDiary = () => {
-    if (selectedDate == null) return;
-    const dateStr = formatDateString(selectedDate);
+    // If no date picked, default to today so the button is never a no-op.
+    let dateStr: string;
+    if (selectedDate != null) {
+      dateStr = formatDateString(selectedDate);
+    } else {
+      const t = new Date();
+      const m = String(t.getMonth() + 1).padStart(2, "0");
+      const d = String(t.getDate()).padStart(2, "0");
+      dateStr = `${t.getFullYear()}-${m}-${d}`;
+    }
     (navigation as any).navigate("Diary", { date: dateStr });
   };
 
@@ -133,13 +153,13 @@ function Calendar() {
   const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 50 }]}>
       <Topbar
         title="캘린더"
         right={<MaterialIcons name="mail" size={22} color={colors.black} />}
       />
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 260 }} showsVerticalScrollIndicator={false}>
         {/* Month navigation */}
         <View style={styles.monthNav}>
           <Pressable onPress={() => changeMonth("prev")}>
@@ -166,14 +186,14 @@ function Calendar() {
           {/* Weekday header */}
           <View style={styles.weekDaysRow}>
             {weekDays.map((day) => (
-              <View key={day} style={styles.weekDayCell}>
+              <View key={day} style={[styles.weekDayCell, { width: cellWidth }]}>
                 <Text style={styles.weekDayText}>{day}</Text>
               </View>
             ))}
           </View>
 
           {/* Day cells */}
-          <View style={styles.daysGrid}>
+          <View style={[styles.daysGrid, { width: cellWidth * 7 }]}>
             {calendarDays.map((day, index) => {
               const isSelected = selectedDate === day && day !== null;
               const attended = day !== null && hasAttendance(day);
@@ -183,6 +203,7 @@ function Calendar() {
                   key={index}
                   style={[
                     styles.dayCell,
+                    { width: cellWidth },
                     isSelected && styles.dayCellSelected,
                     !isSelected && attended && styles.dayCellAttendance,
                   ]}
@@ -205,7 +226,34 @@ function Calendar() {
           </View>
         </View>
 
+        {/* Daily stats (when date selected) */}
+        {selectedDate != null && dailyStats && (
+          <View style={styles.dailyStatsContainer}>
+            <Text style={styles.dailyStatsTitle}>
+              {formatDateString(selectedDate)} 상세
+            </Text>
+            <View style={styles.dailyStatsGrid}>
+              <View style={styles.dailyStatItem}>
+                <Text style={styles.dailyStatValue}>{dailyStats.totalMinutes}분</Text>
+                <Text style={styles.dailyStatLabel}>총 집중 시간</Text>
+              </View>
+              <View style={styles.dailyStatItem}>
+                <Text style={styles.dailyStatValue}>
+                  {dailyStats.diffFromYesterday > 0 ? "+" : ""}
+                  {dailyStats.diffFromYesterday}분
+                </Text>
+                <Text style={styles.dailyStatLabel}>어제 대비</Text>
+              </View>
+              <View style={styles.dailyStatItem}>
+                <Text style={styles.dailyStatValue}>{dailyStats.longestSessionMinutes}분</Text>
+                <Text style={styles.dailyStatLabel}>최장 세션</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Stats section */}
+        <Text style={{ fontFamily: "Pretendard-Bold", fontSize: 14, color: colors.black, marginBottom: 12 }}>월 통계</Text>
         <View style={styles.statsContainer}>
           {monthlyStats.map(({ title, value, unit }, i) => (
             <View
@@ -233,13 +281,15 @@ function Calendar() {
   );
 }
 
+// Calendar cells adapt to screen width: (screenWidth - 48px padding) / 7
+// On 375px screen: (375-48)/7 ≈ 46.7px per cell
+// On 393px screen: (393-48)/7 = 49.3px per cell (matches Figma)
 const CELL_WIDTH = 49;
 const CELL_HEIGHT = 63;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50,
     backgroundColor: colors.white,
   },
   scrollView: {
@@ -270,7 +320,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   weekDayCell: {
-    width: CELL_WIDTH,
     height: 30,
     justifyContent: "center",
     alignItems: "center",
@@ -284,10 +333,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "flex-start",
-    width: CELL_WIDTH * 7,
   },
   dayCell: {
-    width: CELL_WIDTH,
     height: CELL_HEIGHT,
     justifyContent: "center",
     alignItems: "center",
@@ -308,7 +355,7 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     width: "100%",
-    marginBottom: 120,
+    marginBottom: 24,
   },
   statsRow: {
     flexDirection: "row",
@@ -331,9 +378,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.black,
   },
+  dailyStatsContainer: {
+    width: "100%",
+    backgroundColor: colors.gray100,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  dailyStatsTitle: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 12,
+    color: colors.black,
+    marginBottom: 12,
+  },
+  dailyStatsGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  dailyStatItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  dailyStatValue: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 16,
+    color: colors.black,
+    marginBottom: 4,
+  },
+  dailyStatLabel: {
+    fontFamily: "Pretendard-Regular",
+    fontSize: 10,
+    color: colors.gray300,
+  },
   bottomButton: {
     position: "absolute",
-    bottom: 110,
+    bottom: 100,
     alignSelf: "center",
     width: 240,
     height: 50,
@@ -341,6 +420,11 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   bottomButtonText: {
     fontFamily: "Pretendard-Regular",

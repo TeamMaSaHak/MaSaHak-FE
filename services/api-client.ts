@@ -1,28 +1,53 @@
+import { Platform } from "react-native";
 import { API_BASE_URL } from "../constants/api";
 import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
 
+// Web fallback: expo-secure-store is not available on web
+const storage = {
+  async getItem(key: string): Promise<string | null> {
+    if (Platform.OS === "web") {
+      try { return localStorage.getItem(key); } catch { return null; }
+    }
+    return SecureStore.getItemAsync(key);
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    if (Platform.OS === "web") {
+      try { localStorage.setItem(key, value); } catch {}
+      return;
+    }
+    await SecureStore.setItemAsync(key, value);
+  },
+  async deleteItem(key: string): Promise<void> {
+    if (Platform.OS === "web") {
+      try { localStorage.removeItem(key); } catch {}
+      return;
+    }
+    await SecureStore.deleteItemAsync(key);
+  },
+};
+
 export async function getAccessToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return storage.getItem(TOKEN_KEY);
 }
 
 export async function getRefreshToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+  return storage.getItem(REFRESH_TOKEN_KEY);
 }
 
 export async function setTokens(
   accessToken: string,
   refreshToken: string
 ): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
-  await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
+  await storage.setItem(TOKEN_KEY, accessToken);
+  await storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 
 export async function clearTokens(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+  await storage.deleteItem(TOKEN_KEY);
+  await storage.deleteItem(REFRESH_TOKEN_KEY);
 }
 
 interface ApiResponse<T> {
@@ -32,9 +57,31 @@ interface ApiResponse<T> {
   discordInviteUrl?: string;
 }
 
+type AuthFailureListener = () => void;
+const authFailureListeners = new Set<AuthFailureListener>();
+
+export function onAuthFailure(listener: AuthFailureListener): () => void {
+  authFailureListeners.add(listener);
+  return () => {
+    authFailureListeners.delete(listener);
+  };
+}
+
+async function notifyAuthFailure(): Promise<void> {
+  await clearTokens();
+  authFailureListeners.forEach((l) => {
+    try {
+      l();
+    } catch {}
+  });
+}
+
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = await getRefreshToken();
-  if (!refreshToken) return null;
+  if (!refreshToken) {
+    await notifyAuthFailure();
+    return null;
+  }
 
   try {
     const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
@@ -53,6 +100,7 @@ async function refreshAccessToken(): Promise<string | null> {
       return json.data.accessToken;
     }
   } catch {}
+  await notifyAuthFailure();
   return null;
 }
 

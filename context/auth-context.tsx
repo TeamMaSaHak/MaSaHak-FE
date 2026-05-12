@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { getAccessToken } from "../services/api-client";
+import { getAccessToken, onAuthFailure } from "../services/api-client";
 import { verifyMember, logout as logoutApi, UserInfo } from "../services/auth";
+import { registerPushToken } from "../services/push";
 
 interface AuthState {
   isLoading: boolean;
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(res.data.user);
       setIsLoggedIn(true);
       setIsLoading(false);
+      registerPushToken().catch(() => {});
       return true;
     }
 
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (userInfo: UserInfo) => {
     setUser(userInfo);
     setIsLoggedIn(true);
+    registerPushToken().catch(() => {});
   };
 
   const logout = async () => {
@@ -61,6 +64,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     checkAuth();
+    const off = onAuthFailure(() => {
+      setUser(null);
+      setIsLoggedIn(false);
+    });
+    return off;
   }, []);
 
   return (

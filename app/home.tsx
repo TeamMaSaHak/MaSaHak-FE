@@ -5,17 +5,21 @@ import {
   Text,
   Pressable,
   Animated,
+  ScrollView,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
+import { getUnreadCount } from "../services/notifications";
 import { startTimer, stopTimer, pauseTimer, resumeTimer } from "../services/timer";
 import {
   startPomodoro,
   stopPomodoro,
   completeCycle,
   getSettings,
+  saveSettings,
 } from "../services/pomodoro";
 
 type TimerMode = "timer" | "pomodoro";
@@ -23,6 +27,21 @@ type PomodoroPhase = "focus" | "break";
 
 function Home() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
+
+  // Notification badge
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getUnreadCount();
+        if (res.success && res.data) {
+          setUnreadCount(res.data.count);
+        }
+      } catch {}
+    })();
+  }, []);
 
   // Timer mode
   const [mode, setMode] = useState<TimerMode>("timer");
@@ -46,6 +65,24 @@ function Home() {
   const [isPaused, setIsPaused] = useState(false);
   const pomodoroElapsedRef = useRef(0);
   const focusPhaseElapsedRef = useRef(0);
+  const currentPhaseRef = useRef<PomodoroPhase>("focus");
+
+  useEffect(() => {
+    currentPhaseRef.current = currentPhase;
+  }, [currentPhase]);
+
+  // Sync pomodoroSeconds when focusMinutes changes (settings adjustment)
+  useEffect(() => {
+    if (!isRunning && mode === "pomodoro" && currentPhase === "focus") {
+      setPomodoroSeconds(focusMinutes * 60);
+    }
+  }, [focusMinutes]);
+
+  useEffect(() => {
+    if (!isRunning && mode === "pomodoro" && currentPhase === "break") {
+      setPomodoroSeconds(breakMinutes * 60);
+    }
+  }, [breakMinutes]);
 
   // Toggle animation
   const toggleAnim = useRef(new Animated.Value(0)).current;
@@ -108,6 +145,15 @@ function Home() {
           sessionIdRef.current = result.data.sessionId;
         }
       } else {
+        // Save settings to server before starting
+        try {
+          await saveSettings({
+            focusTime: focusMinutes,
+            breakTime: breakMinutes,
+            repeatCount: totalCycles,
+          });
+        } catch {}
+
         const result = await startPomodoro({
           focusTime: focusMinutes,
           breakTime: breakMinutes,
@@ -267,7 +313,7 @@ function Home() {
           setStopwatchSeconds((prev) => prev + 1);
         } else {
           pomodoroElapsedRef.current += 1;
-          if (currentPhase === "focus") {
+          if (currentPhaseRef.current === "focus") {
             focusPhaseElapsedRef.current += 1;
           }
           setPomodoroSeconds((prev) => {
@@ -313,9 +359,33 @@ function Home() {
         }
         right={<MaterialIcons name="mail" size={22} color={colors.black} />}
         onLeftPress={handleBoardPress}
+        onRightPress={() => navigation.navigate("Notifications")}
+        rightBadge={unreadCount}
       />
 
-      <View style={styles.content}>
+      <ScrollView
+        style={[styles.content, { paddingTop: insets.top + 50 }]}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Pomodoro cycle indicators */}
+        {mode === "pomodoro" && (
+          <View style={styles.cycleRow}>
+            {Array.from({ length: totalCycles }).map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.cycleCircle,
+                  index < currentCycle && styles.cycleCircleFilled,
+                ]}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* Timer display */}
+        <Text style={styles.timerText} adjustsFontSizeToFit numberOfLines={1}>{displayTime}</Text>
+
         {/* Toggle tabs */}
         <View style={styles.toggleContainer}>
           <Pressable onPress={() => switchMode("timer")}>
@@ -354,37 +424,68 @@ function Home() {
           </Pressable>
         </View>
 
-        {/* Timer display */}
-        <Text style={styles.timerText}>{displayTime}</Text>
-
-        {/* Pomodoro cycle indicators */}
-        {mode === "pomodoro" && (
-          <View style={styles.cycleContainer}>
-            <View style={styles.cycleRow}>
-              {Array.from({ length: totalCycles }).map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.cycleCircle,
-                    index < currentCycle && styles.cycleCircleFilled,
-                  ]}
-                />
-              ))}
-            </View>
-            <Text style={styles.phaseText}>
-              {currentPhase === "focus" ? "집중 시간" : "휴식 시간"}
-            </Text>
-          </View>
-        )}
-
         {/* Character area */}
         <View style={styles.characterArea}>
           <Text style={styles.characterLabel}>캐릭터</Text>
         </View>
 
+        {/* Pomodoro settings */}
+        {mode === "pomodoro" && !isRunning && (
+          <View style={styles.settingsContainer}>
+            <View style={styles.settingsColumn}>
+              <Text style={styles.settingsLabel}>집중 시간</Text>
+              <View style={styles.settingsValueRow}>
+                <Pressable onPress={() => setFocusMinutes(Math.max(5, focusMinutes - 5))}>
+                  <Text style={styles.settingsArrow}>∨5</Text>
+                </Pressable>
+                <Text style={styles.settingsValue}>{focusMinutes}</Text>
+                <Pressable onPress={() => setFocusMinutes(Math.min(120, focusMinutes + 5))}>
+                  <Text style={styles.settingsArrow}>5∧</Text>
+                </Pressable>
+              </View>
+            </View>
+            <View style={styles.settingsColumn}>
+              <Text style={styles.settingsLabel}>휴식 시간</Text>
+              <View style={styles.settingsValueRow}>
+                <Pressable onPress={() => setBreakMinutes(Math.max(5, breakMinutes - 1))}>
+                  <Text style={styles.settingsArrow}>∨1</Text>
+                </Pressable>
+                <Text style={styles.settingsValue}>{breakMinutes}</Text>
+                <Pressable onPress={() => setBreakMinutes(Math.min(30, breakMinutes + 1))}>
+                  <Text style={styles.settingsArrow}>1∧</Text>
+                </Pressable>
+              </View>
+            </View>
+            <View style={styles.settingsColumn}>
+              <Text style={styles.settingsLabel}>반복</Text>
+              <View style={styles.settingsValueRow}>
+                <Pressable onPress={() => setTotalCycles(Math.max(1, totalCycles - 1))}>
+                  <Text style={styles.settingsArrow}>∨1</Text>
+                </Pressable>
+                <Text style={styles.settingsValue}>{totalCycles}</Text>
+                <Pressable onPress={() => setTotalCycles(Math.min(10, totalCycles + 1))}>
+                  <Text style={styles.settingsArrow}>1∧</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Phase text when running */}
+        {mode === "pomodoro" && isRunning && (
+          <Text style={styles.phaseText}>
+            {currentPhase === "focus" ? "집중 시간" : "휴식 시간"}
+          </Text>
+        )}
+
         {/* Control buttons */}
         <View style={styles.controlsContainer}>
           <View style={styles.controlsWrapper}>
+            {/* Reset button */}
+            <Pressable style={styles.resetButton} onPress={resetTimer}>
+              <MaterialIcons name="replay" size={20} color={colors.black} />
+            </Pressable>
+
             {/* Play/Pause button */}
             <Pressable style={styles.playButton} onPress={toggleTimer}>
               <MaterialIcons
@@ -393,14 +494,9 @@ function Home() {
                 color={colors.white}
               />
             </Pressable>
-
-            {/* Reset button */}
-            <Pressable style={styles.resetButton} onPress={resetTimer}>
-              <MaterialIcons name="replay" size={20} color={colors.black} />
-            </Pressable>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -414,8 +510,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
+    flexGrow: 1,
     alignItems: "center",
-    paddingTop: 74,
+    paddingTop: 24,
+    paddingBottom: 24,
   },
 
   // Toggle
@@ -472,6 +572,7 @@ const styles = StyleSheet.create({
   cycleRow: {
     flexDirection: "row",
     gap: 6,
+    marginBottom: 8,
   },
   cycleCircle: {
     width: 10,
@@ -506,8 +607,8 @@ const styles = StyleSheet.create({
 
   // Controls
   controlsContainer: {
-    flex: 1,
-    justifyContent: "center",
+    marginTop: "auto",
+    paddingVertical: 24,
   },
   controlsWrapper: {
     flexDirection: "row",
@@ -529,5 +630,43 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray100,
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  // Pomodoro Settings
+  settingsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 32,
+    marginBottom: 16,
+  },
+  settingsColumn: {
+    alignItems: "center",
+    gap: 8,
+  },
+  settingsLabel: {
+    fontFamily: "Pretendard-Regular",
+    fontSize: 10,
+    lineHeight: 14,
+    color: colors.gray300,
+  },
+  settingsValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  settingsValue: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 16,
+    lineHeight: 20,
+    color: colors.black,
+    minWidth: 24,
+    textAlign: "center",
+  },
+  settingsArrow: {
+    fontFamily: "Pretendard-Regular",
+    fontSize: 12,
+    color: colors.gray300,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
 });

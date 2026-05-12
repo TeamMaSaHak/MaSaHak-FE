@@ -9,8 +9,11 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../constants/colors";
 import { Topbar } from "../components/topbar";
 import {
@@ -44,6 +47,7 @@ function formatApiDate(date: Date): string {
 }
 
 function Todolist() {
+  const insets = useSafeAreaInsets();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [recurringTodos, setRecurringTodos] = useState<RecurringTodo[]>([]);
 
@@ -103,7 +107,11 @@ function Todolist() {
 
   const handleToggleTodo = async (id: number) => {
     try {
-      await toggleTodo(id);
+      const res = await toggleTodo(id);
+      if (!res.success) {
+        Alert.alert("오류", res.error?.message || "상태 변경에 실패했습니다.");
+        return;
+      }
       await fetchTodos();
     } catch (e: any) {
       Alert.alert("오류", e.message || "상태 변경에 실패했습니다.");
@@ -112,7 +120,12 @@ function Todolist() {
 
   const handleDeleteTodo = async (id: number) => {
     try {
-      await deleteTodo(id);
+      const res = await deleteTodo(id);
+      if (!res.success) {
+        Alert.alert("오류", res.error?.message || "삭제에 실패했습니다.");
+        setShowMenu(null);
+        return;
+      }
       await fetchTodos();
     } catch (e: any) {
       Alert.alert("오류", e.message || "삭제에 실패했습니다.");
@@ -122,7 +135,12 @@ function Todolist() {
 
   const handleDeleteRecurring = async (id: number) => {
     try {
-      await deleteRecurringTodo(id);
+      const res = await deleteRecurringTodo(id);
+      if (!res.success) {
+        Alert.alert("오류", res.error?.message || "삭제에 실패했습니다.");
+        setShowMenu(null);
+        return;
+      }
       await fetchRecurringTodos();
     } catch (e: any) {
       Alert.alert("오류", e.message || "삭제에 실패했습니다.");
@@ -147,26 +165,33 @@ function Todolist() {
   };
 
   const saveTodo = async () => {
-    if (!newTodoText.trim()) return;
+    const content = newTodoText.trim();
+    if (!content) return;
 
     try {
+      let res;
       if (selectedTab === "반복") {
-        if (editingRecurring) {
-          await updateRecurringTodo(editingRecurring.id, newTodoText.trim());
-        } else {
-          await createRecurringTodo(newTodoText.trim());
+        res = editingRecurring
+          ? await updateRecurringTodo(editingRecurring.id, content)
+          : await createRecurringTodo(content);
+        if (!res.success) {
+          Alert.alert("오류", res.error?.message || "저장에 실패했습니다.");
+          return;
         }
         await fetchRecurringTodos();
       } else {
-        if (editingTodo) {
-          await updateTodo(editingTodo.id, newTodoText.trim());
-        } else {
-          await createTodo(newTodoText.trim(), formatApiDate(currentDate));
+        res = editingTodo
+          ? await updateTodo(editingTodo.id, content)
+          : await createTodo(content, formatApiDate(currentDate));
+        if (!res.success) {
+          Alert.alert("오류", res.error?.message || "저장에 실패했습니다.");
+          return;
         }
         await fetchTodos();
       }
     } catch (e: any) {
       Alert.alert("오류", e.message || "저장에 실패했습니다.");
+      return;
     }
 
     setNewTodoText("");
@@ -187,7 +212,11 @@ function Todolist() {
     <View style={styles.container}>
       <Topbar title="투두리스트" />
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={[styles.content, { paddingTop: insets.top + 74 }]}
+        contentContainerStyle={{ paddingBottom: 110 }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Date navigation row */}
         <View style={styles.dateRow}>
           <Pressable onPress={() => navigateDate("back")}>
@@ -443,6 +472,10 @@ function Todolist() {
         animationType="fade"
         onRequestClose={() => setShowTodoModal(false)}
       >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
         <Pressable
           style={styles.modalOverlay}
           onPress={() => {
@@ -463,6 +496,7 @@ function Todolist() {
               style={styles.modalInput}
               placeholder="할 일을 입력하세요"
               placeholderTextColor={colors.gray300}
+              maxLength={22}
               value={newTodoText}
               onChangeText={setNewTodoText}
               autoFocus
@@ -490,6 +524,7 @@ function Todolist() {
             </View>
           </View>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -506,7 +541,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 74,
   },
 
   /* Date navigation row */
@@ -608,6 +642,7 @@ const styles = StyleSheet.create({
   },
   checkbox: {
     marginRight: 12,
+    padding: 8,
   },
   todoText: {
     flex: 1,
@@ -624,10 +659,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   separator: {
-    width: 342,
+    width: "100%",
     height: 1,
     backgroundColor: colors.gray200,
-    alignSelf: "center",
   },
 
   /* Menu popup */
@@ -669,7 +703,7 @@ const styles = StyleSheet.create({
   floatingButton: {
     position: "absolute",
     right: 24,
-    bottom: 100,
+    bottom: 16,
     width: 68,
     height: 68,
     borderRadius: 34,

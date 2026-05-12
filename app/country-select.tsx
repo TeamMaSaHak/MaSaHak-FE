@@ -6,51 +6,61 @@ import {
   Pressable,
   TextInput,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
+import { updateTimezone } from "../services/settings";
 
-const COUNTRIES = [
-  "대한민국",
-  "미국",
-  "일본",
-  "중국",
-  "영국",
-  "프랑스",
-  "독일",
-  "캐나다",
-  "호주",
-  "뉴질랜드",
-  "싱가포르",
-  "태국",
-  "베트남",
-  "인도",
-  "브라질",
-  "멕시코",
-  "러시아",
-  "이탈리아",
-  "스페인",
-  "네덜란드",
+const COUNTRIES: { name: string; timezone: string }[] = [
+  { name: "대한민국", timezone: "Asia/Seoul" },
+  { name: "미국", timezone: "America/New_York" },
+  { name: "일본", timezone: "Asia/Tokyo" },
+  { name: "중국", timezone: "Asia/Shanghai" },
+  { name: "영국", timezone: "Europe/London" },
+  { name: "프랑스", timezone: "Europe/Paris" },
+  { name: "독일", timezone: "Europe/Berlin" },
+  { name: "캐나다", timezone: "America/Toronto" },
+  { name: "호주", timezone: "Australia/Sydney" },
+  { name: "뉴질랜드", timezone: "Pacific/Auckland" },
+  { name: "싱가포르", timezone: "Asia/Singapore" },
+  { name: "태국", timezone: "Asia/Bangkok" },
+  { name: "베트남", timezone: "Asia/Ho_Chi_Minh" },
+  { name: "인도", timezone: "Asia/Kolkata" },
+  { name: "브라질", timezone: "America/Sao_Paulo" },
+  { name: "멕시코", timezone: "America/Mexico_City" },
+  { name: "러시아", timezone: "Europe/Moscow" },
+  { name: "이탈리아", timezone: "Europe/Rome" },
+  { name: "스페인", timezone: "Europe/Madrid" },
+  { name: "네덜란드", timezone: "Europe/Amsterdam" },
 ];
 
 function CountrySelect() {
   const navigation = useNavigation<any>();
-  const [selectedCountry, setSelectedCountry] = useState("대한민국");
+  const insets = useSafeAreaInsets();
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
 
-  const filteredCountries = COUNTRIES.filter((country) =>
-    country.includes(searchText)
+  const filteredCountries = COUNTRIES.filter((c) =>
+    c.name.includes(searchText)
   );
 
-  const handleSelectCountry = (country: string) => {
+  const handleSelectCountry = (country: typeof COUNTRIES[number]) => {
     setSelectedCountry(country);
     setIsDropdownOpen(false);
     setSearchText("");
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    try {
+      await updateTimezone(selectedCountry.timezone);
+    } catch (e) {
+      // Graceful degradation
+    }
     navigation.reset({
       index: 0,
       routes: [{ name: "Main" }],
@@ -58,7 +68,19 @@ function CountrySelect() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: insets.top + 80,
+          paddingBottom: Math.max(insets.bottom + 24, 40),
+        },
+      ]}
+    >
       <View style={styles.topContent}>
         <Text style={styles.title}>
           본인이{"\n"}살고 있는 나라를{"\n"}선택하세요.
@@ -69,7 +91,7 @@ function CountrySelect() {
             style={styles.selector}
             onPress={() => setIsDropdownOpen(!isDropdownOpen)}
           >
-            <Text style={styles.selectorText}>{selectedCountry}</Text>
+            <Text style={styles.selectorText}>{selectedCountry.name}</Text>
             <MaterialIcons
               name={isDropdownOpen ? "keyboard-arrow-up" : "keyboard-arrow-down"}
               size={24}
@@ -90,7 +112,7 @@ function CountrySelect() {
               </View>
               <FlatList
                 data={filteredCountries}
-                keyExtractor={(item) => item}
+                keyExtractor={(item) => item.name}
                 style={styles.dropdownList}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => (
@@ -101,11 +123,11 @@ function CountrySelect() {
                     <Text
                       style={[
                         styles.dropdownItemText,
-                        item === selectedCountry &&
+                        item.name === selectedCountry.name &&
                           styles.dropdownItemTextSelected,
                       ]}
                     >
-                      {item}
+                      {item.name}
                     </Text>
                   </Pressable>
                 )}
@@ -124,6 +146,7 @@ function CountrySelect() {
         </Pressable>
       </View>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -134,8 +157,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.white,
     paddingHorizontal: 24,
-    paddingTop: 150,
-    paddingBottom: 100,
     justifyContent: "space-between",
   },
   topContent: {
@@ -151,7 +172,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   selector: {
-    width: 342,
+    width: "100%",
     height: 50,
     backgroundColor: colors.white,
     borderRadius: 27,
@@ -169,7 +190,7 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
   dropdown: {
-    width: 342,
+    width: "100%",
     backgroundColor: colors.white,
     borderRadius: 16,
     borderWidth: 1,
@@ -184,7 +205,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   searchInput: {
-    width: 310,
+    width: "100%",
     height: 38,
     backgroundColor: colors.gray100,
     borderRadius: 19,

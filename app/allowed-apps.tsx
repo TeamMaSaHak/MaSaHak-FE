@@ -8,6 +8,7 @@ import {
   TextInput,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Topbar } from "../components/topbar";
 import { colors } from "../constants/colors";
@@ -20,6 +21,7 @@ interface App {
 
 function AllowedApps() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   const [selectedTab, setSelectedTab] = useState<"allowed" | "blocked">(
     "allowed"
@@ -74,7 +76,7 @@ function AllowedApps() {
         onLeftPress={() => navigation.goBack()}
       />
 
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingTop: insets.top + 50 }]}>
         {/* Tab Row */}
         <View style={styles.tabRow}>
           <Pressable
@@ -250,7 +252,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingTop: 50,
   },
 
   // Tabs
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   searchBar: {
-    width: 310,
+    width: "100%",
     height: 38,
     backgroundColor: colors.gray100,
     borderRadius: 19,

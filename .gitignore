@@ -18,6 +18,10 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Firebase credentials (do not commit)
+GoogleService-Info.plist
+google-services.json
+
 # Metro
 .metro-health-check*
 
@@ -35,3 +39,7 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+.gstack/
+
+# IDE
+.idea/
