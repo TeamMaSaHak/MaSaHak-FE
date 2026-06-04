@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.masahak.study",
-      "googleServicesFile": "./GoogleService-Info.plist",
+      "googleServicesFile": "$GOOGLE_SERVICES_INFO_PLIST",
       "infoPlist": {
         "UIBackgroundModes": ["remote-notification"]
       },
@@ -29,7 +29,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.masahak.study",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "$GOOGLE_SERVICES_JSON"
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -36,12 +36,12 @@ export async function registerPushToken(): Promise<void> {
 
         if (Platform.OS === "ios") {
             await messaging().registerDeviceForRemoteMessages();
-            const apnsToken = await messaging().getAPNSToken();
-            if (!apnsToken) return;
         }
 
         const fcmToken = await messaging().getToken();
+        console.log("[FCM] token:", fcmToken);
         await registerFcmToken(fcmToken, Platform.OS as "ios" | "android");
+        console.log("[FCM] registered to server");
     } catch (e) {
         console.error("Push token registration failed:", e);
     }

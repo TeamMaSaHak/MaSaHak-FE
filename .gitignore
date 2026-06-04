@@ -22,6 +22,9 @@ expo-env.d.ts
 GoogleService-Info.plist
 google-services.json
 
+# EAS local credentials (do not commit)
+credentials.json
+
 # Metro
 .metro-health-check*
 
