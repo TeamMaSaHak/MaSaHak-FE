@@ -175,7 +175,7 @@ function Profile() {
       onPress: () => navigation.navigate("Terms"),
     },
     {
-      icon: "image" as const,
+      icon: "policy" as const,
       label: "개인정보 처리방침",
       onPress: () => navigation.navigate("Privacy"),
     },
@@ -254,21 +254,11 @@ function Profile() {
               style={styles.settingsItem}
               onPress={item.onPress}
             >
-              {item.icon === "image" ? (
-                <View style={styles.settingsIconPlaceholder}>
-                  <MaterialIcons
-                    name="image"
-                    size={32}
-                    color={colors.gray300}
-                  />
-                </View>
-              ) : (
-                <MaterialIcons
-                  name={item.icon}
-                  size={38}
-                  color={colors.black}
-                />
-              )}
+              <MaterialIcons
+                name={item.icon}
+                size={38}
+                color={colors.black}
+              />
               <Text style={styles.settingsLabel}>{item.label}</Text>
             </Pressable>
           ))}
@@ -418,12 +408,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 4,
-  },
-  settingsIconPlaceholder: {
-    width: 32,
-    height: 32,
-    justifyContent: "center",
-    alignItems: "center",
   },
   settingsLabel: {
     fontFamily: "Pretendard-Regular",

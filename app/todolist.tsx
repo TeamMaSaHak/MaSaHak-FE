@@ -242,9 +242,6 @@ function Todolist() {
             {"오늘 해야하는 일\n"}
             <Text style={styles.heroTitle}>{totalCount}개</Text>
           </Text>
-          <Text style={styles.heroQuote}>
-            한 줄 어쩌고 낭만 감성 오늘의 글귀...
-          </Text>
         </View>
 
         {/* Tab chips row */}
@@ -252,14 +249,14 @@ function Todolist() {
           <Pressable
             style={[
               styles.tabChip,
-              selectedTab === "전체" && styles.tabChipActive,
+              selectedTab === "전체" ? styles.tabChipActive : styles.tabChipInactive,
             ]}
             onPress={() => setSelectedTab("전체")}
           >
             <Text
               style={[
                 styles.tabChipText,
-                selectedTab === "전체" && styles.tabChipTextActive,
+                selectedTab === "전체" ? styles.tabChipTextActive : styles.tabChipTextInactive,
               ]}
             >
               전체
@@ -567,13 +564,6 @@ const styles = StyleSheet.create({
     fontSize: 36,
     lineHeight: 48,
     color: colors.black,
-  },
-  heroQuote: {
-    fontFamily: "Pretendard-Regular",
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.gray300,
-    marginTop: 8,
   },
 
   /* Tab chips row */

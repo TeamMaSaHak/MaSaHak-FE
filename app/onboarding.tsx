@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from "rea
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import * as WebBrowser from "expo-web-browser";
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
 import { colors } from "../constants/colors";
 import { getDiscordAuthUrl, verifyMember } from "../services/auth";
 import { setTokens } from "../services/api-client";
@@ -108,7 +108,7 @@ function Onboarding() {
             <ActivityIndicator size={24} color={colors.white} style={styles.iconContainer} />
           ) : (
             <View style={styles.iconContainer}>
-              <MaterialIcons name="discord" size={28} color={colors.purple} />
+              <FontAwesome5 name="discord" size={24} color={colors.purple} />
             </View>
           )}
           <Text style={styles.buttonText}>디스코드로 로그인</Text>

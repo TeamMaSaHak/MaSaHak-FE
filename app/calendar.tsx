@@ -157,6 +157,7 @@ function Calendar() {
       <Topbar
         title="캘린더"
         right={<MaterialIcons name="mail" size={22} color={colors.black} />}
+        onRightPress={() => (navigation as any).navigate("Notifications")}
       />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 260 }} showsVerticalScrollIndicator={false}>
@@ -281,10 +282,7 @@ function Calendar() {
   );
 }
 
-// Calendar cells adapt to screen width: (screenWidth - 48px padding) / 7
-// On 375px screen: (375-48)/7 ≈ 46.7px per cell
-// On 393px screen: (393-48)/7 = 49.3px per cell (matches Figma)
-const CELL_WIDTH = 49;
+// Cell height fixed; width is computed dynamically from screen size at render time.
 const CELL_HEIGHT = 63;
 
 const styles = StyleSheet.create({

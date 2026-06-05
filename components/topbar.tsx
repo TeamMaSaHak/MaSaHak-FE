@@ -70,13 +70,13 @@ const styles = StyleSheet.create({
         zIndex: 10,
     },
     iconSlot: {
-        width: 22,
+        minWidth: 22,
         height: 22,
         justifyContent: "center",
         alignItems: "center",
     },
     iconArea: {
-        width: 22,
+        minWidth: 22,
         height: 22,
         justifyContent: "center",
         alignItems: "center",

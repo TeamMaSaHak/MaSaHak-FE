@@ -57,9 +57,9 @@ const ProfileStack = () => {
 type TabIconName = "calendar-today" | "home" | "person";
 
 const TAB_ICONS: Record<string, TabIconName> = {
-  "\uCE98\uB9B0\uB354": "calendar-today",
-  "\uD648": "home",
-  "\uD504\uB85C\uD544": "person",
+  "캘린더": "calendar-today",
+  "홈": "home",
+  "프로필": "person",
 };
 
 export const BottomTab = () => {
@@ -91,9 +91,9 @@ export const BottomTab = () => {
         headerShown: false,
       })}
     >
-      <Tab.Screen name={"\uCE98\uB9B0\uB354"} component={CalendarStack} />
-      <Tab.Screen name={"\uD648"} component={HomeStack} />
-      <Tab.Screen name={"\uD504\uB85C\uD544"} component={ProfileStack} />
+      <Tab.Screen name="캘린더" component={CalendarStack} />
+      <Tab.Screen name="홈" component={HomeStack} />
+      <Tab.Screen name="프로필" component={ProfileStack} />
     </Tab.Navigator>
   );
 };
