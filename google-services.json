@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "613870613006",
+    "project_id": "masahakapp-651ef",
+    "storage_bucket": "masahakapp-651ef.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:613870613006:android:2e6889332cbced2465c25f",
+        "android_client_info": {
+          "package_name": "com.masahak.study"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPh9GwIAK1VwR-b0DLnys8J_dlEb5tCjg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

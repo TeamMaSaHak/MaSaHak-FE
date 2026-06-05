@@ -20,7 +20,6 @@ expo-env.d.ts
 
 # Firebase credentials (do not commit)
 GoogleService-Info.plist
-google-services.json
 
 # EAS local credentials (do not commit)
 credentials.json
