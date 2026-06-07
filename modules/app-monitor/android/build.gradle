@@ -1,14 +1,13 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'expo-module'
 
 android {
   namespace "expo.modules.appmonitor"
-  compileSdkVersion safeExtGet("compileSdkVersion", 35)
+  compileSdk 35
 
   defaultConfig {
-    minSdkVersion safeExtGet("minSdkVersion", 24)
-    targetSdkVersion safeExtGet("targetSdkVersion", 35)
+    minSdk 24
+    targetSdk 35
   }
 
   compileOptions {
@@ -17,7 +16,7 @@ android {
   }
 
   kotlinOptions {
-    jvmTarget = JavaVersion.VERSION_17.majorVersion
+    jvmTarget = "17"
   }
 }
 
