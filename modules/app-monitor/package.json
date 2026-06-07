@@ -1,0 +1,6 @@
+{
+  "name": "app-monitor",
+  "version": "1.0.0",
+  "description": "Native app monitoring module for MaSaHak",
+  "main": "index.ts"
+}
