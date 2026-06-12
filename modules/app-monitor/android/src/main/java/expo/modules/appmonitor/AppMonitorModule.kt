@@ -132,5 +132,9 @@ class AppMonitorModule : Module() {
                 }
             )
         }
+
+        AsyncFunction("isMonitoringActive") {
+            AppMonitorService.isActive
+        }
     }
 }

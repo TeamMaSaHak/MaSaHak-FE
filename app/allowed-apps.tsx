@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
+  Platform,
   StyleSheet,
   View,
   Text,
@@ -29,6 +30,7 @@ import {
   startAppMonitoring,
   stopAppMonitoring,
   syncMonitoringList,
+  getMonitoringActive,
 } from "../services/app-monitor";
 
 type PermissionStep = "idle" | "usage" | "overlay" | "done";
@@ -78,16 +80,30 @@ function AllowedApps() {
       const ok = await checkPermissions();
       if (ok) await loadApps();
       else setIsLoading(false);
+
+      if (Platform.OS === "android") {
+        try {
+          const active = await getMonitoringActive();
+          setIsMonitoring(active);
+        } catch {}
+      }
     })();
   }, []);
 
-  // 앱이 설정에서 돌아왔을 때 권한 재확인
+  // 앱이 설정에서 돌아왔을 때 권한 재확인 + 모니터링 상태 재동기화
   useEffect(() => {
     const sub = AppState.addEventListener("change", async (nextState) => {
       if (appStateRef.current !== "active" && nextState === "active") {
         if (permStep === "usage" || permStep === "overlay") {
           const ok = await checkPermissions();
           if (ok && apps.length === 0) await loadApps();
+        }
+
+        if (Platform.OS === "android") {
+          try {
+            const active = await getMonitoringActive();
+            setIsMonitoring(active);
+          } catch {}
         }
       }
       appStateRef.current = nextState;
@@ -127,6 +143,30 @@ function AllowedApps() {
       a.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   })();
+
+  // ── iOS 미지원 화면 ──────────────────────────────────────────
+  if (Platform.OS !== "android") {
+    return (
+      <View style={styles.container}>
+        <Topbar
+          title="허용 어플 관리"
+          left={<MaterialIcons name="arrow-back" size={22} color={colors.black} />}
+          onLeftPress={() => navigation.goBack()}
+        />
+        <View style={[styles.permContainer, { paddingTop: insets.top + 64 }]}>
+          <MaterialIcons name="phone-android" size={56} color={colors.black} />
+          <Text style={styles.permTitle}>Android 전용 기능</Text>
+          <Text style={styles.permDesc}>
+            앱 차단 기능은 Android에서만 지원해요.{"\n"}
+            iPhone에서는 이용하실 수 없어요.
+          </Text>
+          <Pressable style={styles.permButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.permButtonText}>돌아가기</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   // ── 권한 요청 화면 ──────────────────────────────────────────
   if (permStep === "usage") {
@@ -218,7 +258,7 @@ function AllowedApps() {
           onPress={toggleMonitoring}
         >
           <MaterialIcons
-            name={isMonitoring ? "shield" : "shield-off"}
+            name={isMonitoring ? "shield" : "gpp-bad"}
             size={18}
             color={isMonitoring ? colors.white : colors.black}
           />
@@ -368,6 +408,7 @@ const styles = StyleSheet.create({
   permTitle: {
     fontFamily: "Pretendard-Bold",
     fontSize: 20,
+    lineHeight: 24,
     color: colors.black,
     textAlign: "center",
   },
@@ -405,6 +446,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontFamily: "Pretendard-Regular",
     fontSize: 14,
+    lineHeight: 14,
     color: colors.gray300,
   },
 
@@ -534,5 +576,5 @@ const styles = StyleSheet.create({
 
   // 빈 상태
   emptyContainer: { paddingTop: 48, alignItems: "center" },
-  emptyText: { fontFamily: "Pretendard-Regular", fontSize: 14, color: colors.gray300 },
+  emptyText: { fontFamily: "Pretendard-Regular", fontSize: 14, lineHeight: 14, color: colors.gray300 },
 });

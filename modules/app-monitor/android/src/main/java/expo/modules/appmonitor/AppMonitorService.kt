@@ -23,6 +23,8 @@ class AppMonitorService : Service() {
 
         private const val CHANNEL_ID = "masahak_monitor"
         private const val NOTIF_ID = 7001
+
+        @Volatile var isActive = false
     }
 
     private var blockedPackages = emptySet<String>()
@@ -39,6 +41,7 @@ class AppMonitorService : Service() {
             ACTION_START -> {
                 blockedPackages = intent.getStringArrayListExtra(EXTRA_BLOCKED)
                     ?.toHashSet() ?: emptySet()
+                isActive = true
                 startForeground(NOTIF_ID, buildNotification())
                 startMonitorLoop()
             }
@@ -59,6 +62,7 @@ class AppMonitorService : Service() {
 
         monitorThread = Thread {
             val usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+            val pm = packageManager
             var lastDetected: String? = null
 
             while (isRunning) {
@@ -69,17 +73,21 @@ class AppMonitorService : Service() {
                     ?.maxByOrNull { it.lastTimeUsed }
                     ?.packageName
 
-                Handler(Looper.getMainLooper()).post {
-                    if (foreground != null && foreground in blockedPackages) {
-                        if (lastDetected != foreground) {
-                            lastDetected = foreground
-                            showOverlay()
+                if (foreground != null && foreground in blockedPackages) {
+                    if (lastDetected != foreground) {
+                        lastDetected = foreground
+                        val appName = try {
+                            @Suppress("DEPRECATION")
+                            pm.getApplicationLabel(pm.getApplicationInfo(foreground, 0)).toString()
+                        } catch (_: Exception) {
+                            foreground
                         }
-                    } else {
-                        if (lastDetected != null) {
-                            lastDetected = null
-                            removeOverlay()
-                        }
+                        Handler(Looper.getMainLooper()).post { showOverlay(appName) }
+                    }
+                } else {
+                    if (lastDetected != null) {
+                        lastDetected = null
+                        Handler(Looper.getMainLooper()).post { removeOverlay() }
                     }
                 }
 
@@ -90,13 +98,12 @@ class AppMonitorService : Service() {
         monitorThread?.start()
     }
 
-    private fun showOverlay() {
+    private fun showOverlay(appName: String) {
         if (!Settings.canDrawOverlays(this)) return
         if (overlayView != null) return
 
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
-        // 루트 레이아웃 (반투명 배경)
         val root = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#E6000000"))
         }
@@ -124,16 +131,16 @@ class AppMonitorService : Service() {
         }
 
         val desc = TextView(this).apply {
-            text = "이 앱은 비허용 상태예요.\n마법사관학교로 돌아가 집중하세요."
+            text = "'$appName'은(는) 비허용 상태예요.\n마법사관학교로 돌아가 집중하세요."
             textSize = 14f
             setTextColor(Color.parseColor("#CCCCCC"))
             gravity = Gravity.CENTER
             lineSpacingMultiplier = 1.4f
-            setPadding(0, 0, 0, 48)
+            setPadding(0, 0, 0, 40)
         }
 
         val btn = Button(this).apply {
-            text = "마법사관학교로 돌아가기"
+            text = "돌아가기"
             textSize = 15f
             setTextColor(Color.BLACK)
             setTypeface(typeface, Typeface.BOLD)
@@ -145,10 +152,19 @@ class AppMonitorService : Service() {
             }
         }
 
+        val hint = TextView(this).apply {
+            text = "타이머를 끄면 모든 앱을 사용할 수 있어요"
+            textSize = 12f
+            setTextColor(Color.parseColor("#888888"))
+            gravity = Gravity.CENTER
+            setPadding(0, 20, 0, 0)
+        }
+
         center.addView(emoji)
         center.addView(title)
         center.addView(desc)
         center.addView(btn)
+        center.addView(hint)
 
         root.addView(
             center,
@@ -168,8 +184,7 @@ class AppMonitorService : Service() {
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         )
 
@@ -229,10 +244,13 @@ class AppMonitorService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val iconRes = resources.getIdentifier("ic_launcher", "mipmap", packageName)
+            .takeIf { it != 0 } ?: android.R.drawable.ic_menu_compass
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("집중 모드 활성화")
             .setContentText("비허용 앱 차단 중")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
+            .setSmallIcon(iconRes)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -240,6 +258,7 @@ class AppMonitorService : Service() {
     }
 
     override fun onDestroy() {
+        isActive = false
         isRunning = false
         removeOverlay()
         monitorThread?.interrupt()

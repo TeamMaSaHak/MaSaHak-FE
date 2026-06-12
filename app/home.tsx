@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
+  Platform,
   StyleSheet,
   View,
   Text,
@@ -11,6 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Topbar } from "../components/topbar";
+import { ConfirmModal } from "../components/confirm-modal";
 import { colors } from "../constants/colors";
 import { getUnreadCount } from "../services/notifications";
 import { startTimer, stopTimer, pauseTimer, resumeTimer } from "../services/timer";
@@ -21,6 +23,12 @@ import {
   getSettings,
   saveSettings,
 } from "../services/pomodoro";
+import {
+  startAppMonitoring,
+  stopAppMonitoring,
+  loadAppsWithStatus,
+  getMonitoringActive,
+} from "../services/app-monitor";
 
 type TimerMode = "timer" | "pomodoro";
 type PomodoroPhase = "focus" | "break";
@@ -83,6 +91,22 @@ function Home() {
       setPomodoroSeconds(breakMinutes * 60);
     }
   }, [breakMinutes]);
+
+  // App monitoring (Android only)
+  const [isMonitoring, setIsMonitoring] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    (async () => {
+      try {
+        const active = await getMonitoringActive();
+        setIsMonitoring(active);
+      } catch {}
+    })();
+  }, []);
+
+  // Reset confirmation modal
+  const [resetModalVisible, setResetModalVisible] = useState(false);
 
   // Toggle animation
   const toggleAnim = useRef(new Animated.Value(0)).current;
@@ -168,6 +192,14 @@ function Home() {
     } catch (error) {
       // Graceful degradation: allow local timer to work even if API fails
     }
+
+    if (Platform.OS === "android") {
+      try {
+        const apps = await loadAppsWithStatus();
+        await startAppMonitoring(apps);
+        setIsMonitoring(true);
+      } catch {}
+    }
   };
 
   const handlePause = async () => {
@@ -224,6 +256,13 @@ function Home() {
       setCurrentPhase("focus");
       setPomodoroSeconds(focusMinutes * 60);
     }
+
+    if (Platform.OS === "android") {
+      try {
+        await stopAppMonitoring();
+      } catch {}
+      setIsMonitoring(false);
+    }
   };
 
   // Switch mode
@@ -252,6 +291,13 @@ function Home() {
     sessionIdRef.current = null;
     pomodoroElapsedRef.current = 0;
     focusPhaseElapsedRef.current = 0;
+
+    if (Platform.OS === "android") {
+      try {
+        await stopAppMonitoring();
+      } catch {}
+      setIsMonitoring(false);
+    }
 
     Animated.timing(toggleAnim, {
       toValue: newMode === "pomodoro" ? 1 : 0,
@@ -384,7 +430,18 @@ function Home() {
         )}
 
         {/* Timer display */}
-        <Text style={styles.timerText} adjustsFontSizeToFit numberOfLines={1}>{displayTime}</Text>
+        <Text
+          style={[styles.timerText, isMonitoring && styles.timerTextWithBadge]}
+          adjustsFontSizeToFit
+          numberOfLines={1}
+        >
+          {displayTime}
+        </Text>
+
+        {/* Monitoring badge */}
+        {isMonitoring && (
+          <Text style={styles.monitoringBadge}>비허용 앱 차단 중</Text>
+        )}
 
         {/* Toggle tabs */}
         <View style={styles.toggleContainer}>
@@ -482,8 +539,8 @@ function Home() {
         <View style={styles.controlsContainer}>
           <View style={styles.controlsWrapper}>
             {/* Reset button */}
-            <Pressable style={styles.resetButton} onPress={resetTimer}>
-              <MaterialIcons name="replay" size={20} color={colors.black} />
+            <Pressable style={styles.resetButton} onPress={() => setResetModalVisible(true)}>
+              <MaterialIcons name="replay" size={32} color={colors.black} />
             </Pressable>
 
             {/* Play/Pause button */}
@@ -497,6 +554,22 @@ function Home() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Reset confirmation modal: ConfirmModal places its first text arg on the
+          left button and its second on the right — "확인" must sit on the left,
+          so it is passed as cancelText/onCancel and "취소" as confirmText/onConfirm */}
+      <ConfirmModal
+        visible={resetModalVisible}
+        title="정말 리셋하시겠습니까?"
+        subtitle="리셋 시 공부 시간은 자동으로 저장됩니다."
+        cancelText="확인"
+        confirmText="취소"
+        onCancel={() => {
+          setResetModalVisible(false);
+          resetTimer();
+        }}
+        onConfirm={() => setResetModalVisible(false)}
+      />
     </View>
   );
 }
@@ -514,7 +587,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
     alignItems: "center",
-    paddingTop: 24,
+    paddingTop: 80,
     paddingBottom: 24,
   },
 
@@ -522,13 +595,13 @@ const styles = StyleSheet.create({
   toggleContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 32,
+    gap: 10,
+    marginBottom: 40,
   },
   toggleText: {
     fontFamily: "Pretendard-Bold",
     fontSize: 12,
-    lineHeight: 16,
+    lineHeight: 10,
   },
   toggleTextActive: {
     color: colors.black,
@@ -538,37 +611,44 @@ const styles = StyleSheet.create({
   },
   toggleTrack: {
     width: 46,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.black,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.white,
     justifyContent: "center",
-    paddingHorizontal: 0,
+    shadowColor: colors.black,
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 3.5,
+    elevation: 2,
   },
   toggleCircle: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.black,
+    backgroundColor: colors.black,
   },
 
   // Timer
   timerText: {
     fontFamily: "Pretendard-Bold",
     fontSize: 50,
-    lineHeight: 60,
+    lineHeight: 48,
     color: colors.black,
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: 40,
+  },
+  timerTextWithBadge: {
+    marginBottom: 8,
+  },
+  monitoringBadge: {
+    fontFamily: "Pretendard-Regular",
+    fontSize: 11,
+    lineHeight: 14,
+    color: colors.gray300,
+    marginBottom: 24,
   },
 
   // Pomodoro cycles
-  cycleContainer: {
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
-  },
   cycleRow: {
     flexDirection: "row",
     gap: 6,
@@ -588,6 +668,7 @@ const styles = StyleSheet.create({
   phaseText: {
     fontFamily: "Pretendard-Regular",
     fontSize: 12,
+    lineHeight: 12,
     color: colors.gray300,
   },
 
@@ -602,6 +683,7 @@ const styles = StyleSheet.create({
   characterLabel: {
     fontFamily: "Pretendard-Regular",
     fontSize: 10,
+    lineHeight: 12,
     color: colors.gray300,
   },
 
@@ -613,7 +695,7 @@ const styles = StyleSheet.create({
   controlsWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 36,
   },
   playButton: {
     width: 90,
@@ -626,8 +708,6 @@ const styles = StyleSheet.create({
   resetButton: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.gray100,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -665,6 +745,7 @@ const styles = StyleSheet.create({
   settingsArrow: {
     fontFamily: "Pretendard-Regular",
     fontSize: 12,
+    lineHeight: 12,
     color: colors.gray300,
     paddingHorizontal: 4,
     paddingVertical: 4,
