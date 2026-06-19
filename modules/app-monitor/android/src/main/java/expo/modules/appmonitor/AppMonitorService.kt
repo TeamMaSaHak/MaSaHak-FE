@@ -135,7 +135,7 @@ class AppMonitorService : Service() {
             textSize = 14f
             setTextColor(Color.parseColor("#CCCCCC"))
             gravity = Gravity.CENTER
-            lineSpacingMultiplier = 1.4f
+            setLineSpacing(0f, 1.4f)
             setPadding(0, 0, 0, 40)
         }
 
