@@ -47,3 +47,7 @@ yarn-error.*
 
 # IDE
 .idea/
+
+# Native module build artifacts
+modules/*/android/build/
+modules/*/ios/build/
