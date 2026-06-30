@@ -410,8 +410,8 @@ function Home() {
       />
 
       <ScrollView
-        style={[styles.content, { paddingTop: insets.top + 50 }]}
-        contentContainerStyle={styles.contentContainer}
+        style={styles.content}
+        contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top + 50 + 24 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Pomodoro cycle indicators */}
@@ -587,7 +587,6 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
     alignItems: "center",
-    paddingTop: 80,
     paddingBottom: 24,
   },
 

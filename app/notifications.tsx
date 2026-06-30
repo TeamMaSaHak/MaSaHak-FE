@@ -158,12 +158,12 @@ const styles = StyleSheet.create({
   },
   notificationItem: {
     minHeight: 68,
+    width: "100%",
     backgroundColor: colors.white,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 8,
-    alignSelf: "center",
   },
   notificationContent: {
     flex: 1,

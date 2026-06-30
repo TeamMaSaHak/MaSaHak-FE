@@ -249,7 +249,7 @@ function Diary() {
         <Pressable
           style={[
             styles.bottomButton,
-            { bottom: 16 },
+            { bottom: Math.max(insets.bottom + 8, 16) },
             (isLocked || !canEdit) && { opacity: 0.4 },
           ]}
           onPress={handleSave}
@@ -323,7 +323,7 @@ function Diary() {
         {/* Show AI reply button if reply exists */}
         {aiReplyText && (
           <Pressable
-            style={[styles.bottomButton, { bottom: 16 }]}
+            style={[styles.bottomButton, { bottom: Math.max(insets.bottom + 8, 16) }]}
             onPress={handleGoToAiReply}
           >
             <Text style={styles.bottomButtonText}>답장 보러 가기</Text>
@@ -393,7 +393,7 @@ function Diary() {
 
         {/* Go back to diary button */}
         <Pressable
-          style={[styles.bottomButton, { bottom: 16 }]}
+          style={[styles.bottomButton, { bottom: Math.max(insets.bottom + 8, 16) }]}
           onPress={handleGoToDiary}
         >
           <Text style={styles.bottomButtonText}>일기 보러 가기</Text>

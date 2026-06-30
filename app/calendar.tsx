@@ -25,10 +25,10 @@ function Calendar() {
 
   // Monthly stats
   const [monthlyStats, setMonthlyStats] = useState([
-    { title: "공부한 시간", value: "-", unit: "" },
-    { title: "전일 대비 공부한 시간", value: "-", unit: "" },
-    { title: "공부 시작 시간", value: "-", unit: "" },
-    { title: "가장 길게 집중한 시간", value: "-", unit: "" },
+    { title: "총 공부 시간", value: "-", unit: "" },
+    { title: "하루 평균", value: "-", unit: "" },
+    { title: "출석일", value: "-", unit: "" },
+    { title: "완료한 투두", value: "-", unit: "" },
   ]);
 
   const fetchCalendarData = useCallback(async () => {
@@ -57,10 +57,26 @@ function Calendar() {
         const avgHrs = Math.floor(s.averageMinutesPerDay / 60);
         const avgMins = s.averageMinutesPerDay % 60;
         setMonthlyStats([
-          { title: "공부한 시간", value: totalHrs > 0 ? `${totalHrs}시간 ${totalMins}분` : `${totalMins}분`, unit: "" },
-          { title: "전일 대비 공부한 시간", value: "-", unit: "" },
-          { title: "공부 시작 시간", value: "-", unit: "" },
-          { title: "가장 길게 집중한 시간", value: "-", unit: "" },
+          {
+            title: "총 공부 시간",
+            value: s.totalMinutes === 0 ? "-" : (totalHrs > 0 ? `${totalHrs}시간 ${totalMins}분` : `${totalMins}분`),
+            unit: "",
+          },
+          {
+            title: "하루 평균",
+            value: s.averageMinutesPerDay === 0 ? "-" : (avgHrs > 0 ? `${avgHrs}시간 ${avgMins}분` : `${avgMins}분`),
+            unit: "",
+          },
+          {
+            title: "출석일",
+            value: `${s.attendanceDays}일`,
+            unit: ` / ${s.totalDaysInMonth}일`,
+          },
+          {
+            title: "완료한 투두",
+            value: `${s.completedTodos}개`,
+            unit: "",
+          },
         ]);
       }
     } catch (e) {
@@ -254,7 +270,7 @@ function Calendar() {
         )}
 
         {/* Stats section */}
-        <Text style={{ fontFamily: "Pretendard-Bold", fontSize: 14, color: colors.black, marginBottom: 12 }}>월 통계</Text>
+        <Text style={styles.sectionTitle}>월 통계</Text>
         <View style={styles.statsContainer}>
           {monthlyStats.map(({ title, value, unit }, i) => (
             <View
@@ -407,6 +423,13 @@ const styles = StyleSheet.create({
     fontFamily: "Pretendard-Regular",
     fontSize: 10,
     color: colors.gray300,
+  },
+  sectionTitle: {
+    fontFamily: "Pretendard-Bold",
+    fontSize: 14,
+    color: colors.black,
+    marginBottom: 12,
+    marginTop: 4,
   },
   bottomButton: {
     position: "absolute",

@@ -13,6 +13,7 @@ import {
   Platform,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../constants/colors";
 import { Topbar } from "../components/topbar";
@@ -47,6 +48,7 @@ function formatApiDate(date: Date): string {
 }
 
 function Todolist() {
+  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [recurringTodos, setRecurringTodos] = useState<RecurringTodo[]>([]);
@@ -210,7 +212,11 @@ function Todolist() {
 
   return (
     <View style={styles.container}>
-      <Topbar title="투두리스트" />
+      <Topbar
+        title="투두리스트"
+        left={<MaterialIcons name="arrow-back-ios-new" size={22} color={colors.black} />}
+        onLeftPress={() => navigation.goBack()}
+      />
 
       <ScrollView
         style={[styles.content, { paddingTop: insets.top + 74 }]}
@@ -239,7 +245,12 @@ function Todolist() {
         {/* Hero section */}
         <View style={styles.heroSection}>
           <Text style={styles.heroTitle}>
-            {"오늘 해야하는 일\n"}
+            {(() => {
+              const today = new Date();
+              const isToday =
+                formatApiDate(currentDate) === formatApiDate(today);
+              return isToday ? "오늘 해야하는 일\n" : `${formatDisplayDate(currentDate)}\n`;
+            })()}
             <Text style={styles.heroTitle}>{totalCount}개</Text>
           </Text>
         </View>
